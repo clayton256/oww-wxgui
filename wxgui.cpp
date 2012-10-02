@@ -1,6 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////
-// Name:        
-// Purpose:     
+// Name:        wxgui.cpp
+// Purpose:     wxGui classes and implimentations.
+// Author:      Mark Clayton <mark_clayton@sourceforge.com>
+// Created:     Sept, 30 2012
+// Copyright:   (c) John Mark Clayton
+// Licence:     GPL Ver 3: See the COPYING file that came with this package
+///////////////////////////////////////////////////////////////////////////////
 // Author:      
 // Created:     
 // Copyright:   (c) 

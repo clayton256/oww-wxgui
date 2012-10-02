@@ -1,10 +1,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Name:        wxgui.h
-// Purpose:     
-// Author:      
-// Created:     
-// Copyright:   (c) 
-// Licence:     
+// Purpose:     Header for wxGui classes and implimentations.
+// Author:      Mark Clayton <mark_clayton@sourceforge.com>
+// Created:     Sept, 30 2012
+// Copyright:   (c) John Mark Clayton
+// Licence:     GPL Ver 3: See the COPYING file that came with this package
 ///////////////////////////////////////////////////////////////////////////////
 
 #include <wx/scrolwin.h>
