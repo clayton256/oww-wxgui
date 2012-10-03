@@ -9,8 +9,8 @@
 
 WXDIR = $(WXWIN)
 
-TARGET=wxoww
-OBJECTS = $(TARGET).obj
+TARGET=Oww
+OBJECTS = wxgui.obj
 
 !include $(WXDIR)\src\makeprog.b32
 

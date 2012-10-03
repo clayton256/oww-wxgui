@@ -82,10 +82,10 @@ private:
 };
 
 
-class MyImageFrame : public wxFrame
+class MyAuxilliaryFrame : public wxFrame
 {
 public:
-    MyImageFrame(wxFrame *parent, const wxString& desc)
+    MyAuxilliaryFrame(wxFrame *parent, const wxString& desc)
     {
         Create(parent, desc); 
     }
@@ -151,11 +151,11 @@ private:
 // MyImageFrame
 //-----------------------------------------------------------------------------
 
-BEGIN_EVENT_TABLE(MyImageFrame, wxFrame)
-    EVT_ERASE_BACKGROUND(MyImageFrame::OnEraseBackground)
-    EVT_PAINT(MyImageFrame::OnPaint)
+BEGIN_EVENT_TABLE(MyAuxilliaryFrame, wxFrame)
+    EVT_ERASE_BACKGROUND(MyAuxilliaryFrame::OnEraseBackground)
+    EVT_PAINT(MyAuxilliaryFrame::OnPaint)
 
-    EVT_MENU(wxID_SAVE, MyImageFrame::OnSave)
+    EVT_MENU(wxID_SAVE, MyAuxilliaryFrame::OnSave)
 END_EVENT_TABLE()
 
 //-----------------------------------------------------------------------------
@@ -319,52 +319,53 @@ wxString MyBasicDialog::GetText ()
  
 MyBasicDialog::MyBasicDialog ( wxWindow * parent, wxWindowID id, 
                                 wxString const & title,
-	              wxPoint const & position = wxDefaultPosition,
-	              wxSize const & size = wxDefaultSize,
-	              long style = wxDEFAULT_DIALOG_STYLE )
+                  wxPoint const & position = wxDefaultPosition,
+                  wxSize const & size = wxDefaultSize,
+                  long style = wxDEFAULT_DIALOG_STYLE )
 : wxDialog( parent, id, title, position, size, style)
 {
-	wxString dimensions = "", s;
-	wxPoint p;
-	wxSize  sz;
+    wxString dimensions = "", s;
+    wxPoint p;
+    wxSize  sz;
  
-	sz.SetWidth(size.GetWidth() - 20);
-	sz.SetHeight(size.GetHeight() - 70);
+    sz.SetWidth(size.GetWidth() - 20);
+    sz.SetHeight(size.GetHeight() - 70);
  
-	p.x = 6; p.y = 2;
-	s.Printf(_(" x = %d y = %d\n"), p.x, p.y);
-	dimensions.append(s);
-	s.Printf(_(" width = %d height = %d\n"), sz.GetWidth(), sz.GetHeight());
-	dimensions.append(s);
-	dimensions.append("Mark Clayton");
+    p.x = 6; p.y = 2;
+    s.Printf(_(" x = %d y = %d\n"), p.x, p.y);
+    dimensions.append(s);
+    s.Printf(_(" width = %d height = %d\n"), sz.GetWidth(), sz.GetHeight());
+    dimensions.append(s);
+    dimensions.append("Mark Clayton");
  
-	dialogText = new wxTextCtrl(this, -1, dimensions, p, sz, wxTE_MULTILINE);
+    dialogText = new wxTextCtrl(this, -1, dimensions, p, sz, wxTE_MULTILINE);
  
-	p.y += sz.GetHeight() + 10;
-	wxButton * b = new wxButton(this, wxID_OK, _("OK"), p, wxDefaultSize);
-	p.x += 110;
-	wxButton * c = new wxButton(this, wxID_CANCEL, _("Cancel"), p, wxDefaultSize);
+    p.y += sz.GetHeight() + 10;
+    wxButton * b = new wxButton(this, wxID_OK, _("OK"), p, wxDefaultSize);
+    p.x += 110;
+    wxButton * c = new wxButton(this, wxID_CANCEL, _("Cancel"), p, wxDefaultSize);
 }
 
 void MyFrame::OnSetup( wxCommandEvent &WXUNUSED(event) )
 {
     wxString dialogText;
     MyBasicDialog setupDialog(this, -1, _("Your very own dialog"),
-	                          wxPoint(100, 100), wxSize(200, 200));
-	if ( setupDialog.ShowModal() != wxID_OK ) /* Modal .ShowModal() vs non-Modal .Show() */
-		dialogText = "The about box was cancelled.\n";
-	else
-		dialogText = setupDialog.GetText();
+                              wxPoint(100, 100), wxSize(200, 200));
+    /* Modal .ShowModal() vs non-Modal .Show() */
+    if ( setupDialog.ShowModal() != wxID_OK ) 
+        dialogText = "The about box was cancelled.\n";
+    else
+        dialogText = setupDialog.GetText();
 }
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
-    new MyImageFrame(this, "Aux");
+    new MyAuxilliaryFrame(this, "Aux");
 }
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
-    new MyImageFrame(this, "Map");
+    //new MyMapFrame(this, "Map");
 }
 
 
@@ -553,33 +554,34 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     switch (counter % 3)
     {
         case 0:
-	    if (top1_jpg.IsOk())
-	    {
-		dc.DrawBitmap( top1_jpg, 0, 0 );
-	    }
+        if (top1_jpg.IsOk())
+        {
+        dc.DrawBitmap( top1_jpg, 0, 0 );
+        }
             counter++;
             break;
 
         case 1:
-	    if (top2_jpg.IsOk())
-	    {
-		dc.DrawBitmap( top2_jpg, 0, 0 );
-	    }
+        if (top2_jpg.IsOk())
+        {
+        dc.DrawBitmap( top2_jpg, 0, 0 );
+        }
             counter++;
             break;
         case 2:
-	    if (top3_jpg.IsOk())
-	    {
-		dc.DrawBitmap( top3_jpg, 0, 0 );
-	    }
+        if (top3_jpg.IsOk())
+        {
+        dc.DrawBitmap( top3_jpg, 0, 0 );
+        }
             counter = 0;
     }    
 
     if (body_jpg.IsOk())
-        dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight()); //134 );
+        dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight());
 
     if (bottom1_jpg.IsOk())
-        dc.DrawBitmap( bottom8_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight()); //196 );
+        dc.DrawBitmap( bottom8_jpg, 0, 
+            top1_jpg.GetHeight() + body_jpg.GetHeight());
 
     if (rh_png.IsOk())
         dc.DrawBitmap( rh_png, 300, 180 );

@@ -97,17 +97,17 @@ class MyBasicDialog: public wxDialog
 {
 public:
  
-	MyBasicDialog ( wxWindow * , wxWindowID , wxString const & , 
+    MyBasicDialog ( wxWindow * , wxWindowID , wxString const & , 
                         wxPoint const & , wxSize const & , long );
 
-	wxTextCtrl * dialogText;
-	wxString GetText();
+    wxTextCtrl * dialogText;
+    wxString GetText();
  
 private:
  
-	void OnOk( wxCommandEvent & event );
+    void OnOk( wxCommandEvent & event );
  
-	DECLARE_EVENT_TABLE()
+    DECLARE_EVENT_TABLE()
 };
 
 
