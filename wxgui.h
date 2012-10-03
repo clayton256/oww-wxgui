@@ -12,6 +12,7 @@
 #include <wx/propdlg.h>
 #include <wx/generic/propdlg.h>
 
+class MyFrame;
 
 //-----------------------------------------------------------------------------
 // MyCanvas
@@ -53,10 +54,10 @@ private:
 
 class RenderTimer : public wxTimer
 {
-    MyCanvas* canvas;
+    MyFrame * m_frame;
     
 public:
-    RenderTimer(MyCanvas* canvas);
+    RenderTimer(MyFrame * canvas);
     void Notify();
     void start();
 };

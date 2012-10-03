@@ -33,6 +33,7 @@
 #include <wx/graphics.h>
 #include <wx/grid.h>
 #include <wx/listctrl.h>
+#include <wx/config.h>
 
 #include "wxgui.h"
 
@@ -62,7 +63,8 @@ public:
 
 class MyFrame: public wxFrame
 {
-    RenderTimer* timer;
+    RenderTimer *m_timer;
+    wxConfigBase *m_config;
 
 public:
     MyFrame();
@@ -96,6 +98,7 @@ public:
 
 private:
     wxGrid *m_grid;
+    wxStatusBar * m_statusBar;
     bool Create(wxFrame *parent, const wxString& desc)
     {
         if ( !wxFrame::Create(parent, wxID_ANY,
@@ -112,7 +115,7 @@ private:
         mbar->Append(menu, wxT("Something here?"));
         SetMenuBar(mbar);
 
-        CreateStatusBar(2);
+        m_statusBar = CreateStatusBar(2);
         SetStatusText("Loading", 1);
 
         UpdateStatusBar();
@@ -148,6 +151,7 @@ private:
         wxPaintDC dc(this);
 
         const wxSize size = GetClientSize();
+        m_statusBar->SetStatusText("Running...", 1);
     }
 
     void OnSave(wxCommandEvent& WXUNUSED(event))
@@ -247,19 +251,23 @@ MyFrame::MyFrame()
 
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(10,10) );
 
-    timer = new RenderTimer(m_canvas);
+    m_timer = new RenderTimer(this);
     Show();
-    timer->start();
- 
- 
+    m_timer->start();
+
+    m_config = wxConfigBase::Get();
+    wxString serverStr = "little-harbor.local.";
+    m_config->Write("server", serverStr);
+    m_config->Read("server", serverStr);
+
     // 500 width * 2750 height
     //m_canvas->SetScrollbars( 10, 10, 50, 275 );
 }
 
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
-    timer->Stop();
-    delete timer;
+    m_timer->Stop();
+    delete m_timer;
     Close( true );
 }
 
@@ -284,12 +292,6 @@ void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
 class MyDevicesFrame : public wxFrame
 {
 public:
-    enum
-    {
-        WIDTH = 256,
-        HEIGHT = 90
-    };
-
     MyDevicesFrame(wxWindow* parent, wxString title) :
         wxFrame(parent, wxID_ANY, title)
     {
@@ -300,18 +302,18 @@ public:
     }
 
 private:
-    wxListCtrl m_listCtrl;
+    wxGrid m_grid;
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
         wxPaintDC dc(this);
         wxScopedPtr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
 
         gc->SetFont(*wxNORMAL_FONT, *wxBLACK);
-        gc->DrawText("Text Here", 0, HEIGHT/2);
+        gc->DrawText("Text Here", 0, 90/2);
 
         wxGraphicsFont gf = gc->CreateFont(wxNORMAL_FONT->GetPixelSize().y, "");
         gc->SetFont(gf);
-        gc->DrawText("More Text", 0, (3*HEIGHT)/2);
+        gc->DrawText("More Text", 0, (3*90)/2);
     }
 
     wxDECLARE_NO_COPY_CLASS(MyDevicesFrame);
@@ -383,8 +385,8 @@ void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
     wxFloat32 log = -82.903755;
     //new MyMapFrame(this, "Map");
     wxString command = wxString::Format("open /Applications/Safari.app http://www.mapquest.com/maps/map.adp?latlongtype=decimal&latitude=%f&longitude=%f", lat, log);
+    m_config->Read("mapcmd", command);
     wxArrayString output;
-
     wxExecute(command, output);
 }
 
@@ -426,14 +428,14 @@ bool MyApp::OnInit()
 
 
  
-RenderTimer::RenderTimer(MyCanvas* pane) : wxTimer()
+RenderTimer::RenderTimer(MyFrame* f) : wxTimer()
 {
-    RenderTimer::canvas = pane;
+    RenderTimer::m_frame = f;
 }
  
 void RenderTimer::Notify()
 {
-    canvas->Refresh();
+    m_frame->m_canvas->Refresh();
 }
  
 void RenderTimer::start()
