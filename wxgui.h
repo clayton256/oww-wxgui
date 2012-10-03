@@ -93,19 +93,22 @@ DECLARE_EVENT_TABLE()
 };
 
 
-class MyBasicDialog: public wxDialog
+class MySetupDialog: public wxDialog
 {
 public:
  
-    MyBasicDialog ( wxWindow * , wxWindowID , wxString const & , 
+    MySetupDialog ( wxWindow * , wxWindowID , wxString const & , 
                         wxPoint const & , wxSize const & , long );
 
     wxTextCtrl * dialogText;
     wxString GetText();
  
 private:
+    wxButton *m_btnOk,
+             *m_btnCancel,
+             *m_btnDelete;
  
-    void OnOk( wxCommandEvent & event );
+    void OnButton( wxCommandEvent & event );
  
     DECLARE_EVENT_TABLE()
 };

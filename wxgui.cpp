@@ -31,6 +31,8 @@
 #include <wx/quantize.h>
 #include <wx/stopwatch.h>
 #include <wx/graphics.h>
+#include <wx/grid.h>
+#include <wx/listctrl.h>
 
 #include "wxgui.h"
 
@@ -82,8 +84,10 @@ private:
 };
 
 
+
 class MyAuxilliaryFrame : public wxFrame
 {
+//DECLARE_CLASS(MyAuxilliaryFrame)
 public:
     MyAuxilliaryFrame(wxFrame *parent, const wxString& desc)
     {
@@ -91,6 +95,7 @@ public:
     }
 
 private:
+    wxGrid *m_grid;
     bool Create(wxFrame *parent, const wxString& desc)
     {
         if ( !wxFrame::Create(parent, wxID_ANY,
@@ -99,18 +104,35 @@ private:
                               wxDEFAULT_FRAME_STYLE | wxFULL_REPAINT_ON_RESIZE) )
             return false;
 
+        m_grid = (wxGrid*)NULL;
         wxMenu *menu = new wxMenu;
         menu->Append(wxID_SAVE);
 
         wxMenuBar *mbar = new wxMenuBar;
-        mbar->Append(menu, wxT("&Image"));
+        mbar->Append(menu, wxT("Something here?"));
         SetMenuBar(mbar);
 
         CreateStatusBar(2);
         SetStatusText("Loading", 1);
 
         UpdateStatusBar();
-
+        m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
+        m_grid->EnableEditing(false);
+        m_grid->EnableDragRowSize(false);
+        m_grid->CreateGrid(0, 3);
+        m_grid->SetLabelValue(wxHORIZONTAL, "Name", 0);
+        m_grid->SetLabelValue(wxHORIZONTAL, "Value", 1);
+        m_grid->SetLabelValue(wxHORIZONTAL, "Unit", 2);
+        m_grid->AppendRows(12);
+        m_grid->SetCellValue("Wind Speed", 0, 0);
+        m_grid->SetCellValue("22.2", 0, 1);
+        m_grid->SetCellValue("mph", 0, 2);
+        m_grid->AutoSize();
+//        m_grid->UpdateDimensions();
+        SetClientSize(m_grid->GetSize());
+//        SetSize(wxSize((2+m_grid->GetRows())*m_grid->GetRowSize(0), 
+//                        m_grid->GetColLabelSize()+m_grid->GetColSize(0)
+//                                 +m_grid->GetColSize(1)+m_grid->GetColSize(2)));
         Show();
 
         return true;
@@ -259,7 +281,7 @@ void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
                         wxICON_INFORMATION | wxOK );
 }
 
-class MyGraphicsFrame : public wxFrame
+class MyDevicesFrame : public wxFrame
 {
 public:
     enum
@@ -268,16 +290,17 @@ public:
         HEIGHT = 90
     };
 
-    MyGraphicsFrame(wxWindow* parent, wxString title) :
+    MyDevicesFrame(wxWindow* parent, wxString title) :
         wxFrame(parent, wxID_ANY, title)
     {
-
-        Connect(wxEVT_PAINT, wxPaintEventHandler(MyGraphicsFrame::OnPaint));
+    
+        Connect(wxEVT_PAINT, wxPaintEventHandler(MyDevicesFrame::OnPaint));
 
         Show();
     }
 
 private:
+    wxListCtrl m_listCtrl;
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
         wxPaintDC dc(this);
@@ -291,33 +314,25 @@ private:
         gc->DrawText("More Text", 0, (3*HEIGHT)/2);
     }
 
-    wxDECLARE_NO_COPY_CLASS(MyGraphicsFrame);
+    wxDECLARE_NO_COPY_CLASS(MyDevicesFrame);
 };
 
 
 
-BEGIN_EVENT_TABLE(MyBasicDialog, wxDialog)
-    EVT_BUTTON(wxID_ANY, MyBasicDialog::OnOk)
+BEGIN_EVENT_TABLE(MySetupDialog, wxDialog)
+    EVT_BUTTON(wxID_ANY, MySetupDialog::OnButton)
 END_EVENT_TABLE()
 
 
 
-void MyBasicDialog::OnOk (wxCommandEvent & event)
+void MySetupDialog::OnButton (wxCommandEvent & event)
 {
-    Close(true);
+    event.Skip();
     return;
 }
 
-wxString MyBasicDialog::GetText ()
-{
-    return "Goober!!!";
-}
 
-//MyBasicDialog::~MyBasicDialog ()
-//{
-//}
- 
-MyBasicDialog::MyBasicDialog ( wxWindow * parent, wxWindowID id, 
+MySetupDialog::MySetupDialog ( wxWindow * parent, wxWindowID id, 
                                 wxString const & title,
                   wxPoint const & position = wxDefaultPosition,
                   wxSize const & size = wxDefaultSize,
@@ -344,18 +359,17 @@ MyBasicDialog::MyBasicDialog ( wxWindow * parent, wxWindowID id,
     wxButton * b = new wxButton(this, wxID_OK, _("OK"), p, wxDefaultSize);
     p.x += 110;
     wxButton * c = new wxButton(this, wxID_CANCEL, _("Cancel"), p, wxDefaultSize);
+
+    SetEscapeId(wxID_CANCEL);
+
 }
 
 void MyFrame::OnSetup( wxCommandEvent &WXUNUSED(event) )
 {
     wxString dialogText;
-    MyBasicDialog setupDialog(this, -1, _("Your very own dialog"),
+    MySetupDialog setupDialog(this, -1, _("Your very own dialog"),
                               wxPoint(100, 100), wxSize(200, 200));
-    /* Modal .ShowModal() vs non-Modal .Show() */
-    if ( setupDialog.ShowModal() != wxID_OK ) 
-        dialogText = "The about box was cancelled.\n";
-    else
-        dialogText = setupDialog.GetText();
+    setupDialog.ShowModal();
 }
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
@@ -365,19 +379,25 @@ void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
+    wxFloat32 lat = 35.5149282;
+    wxFloat32 log = -82.903755;
     //new MyMapFrame(this, "Map");
+    wxString command = wxString::Format("open /Applications/Safari.app http://www.mapquest.com/maps/map.adp?latlongtype=decimal&latitude=%f&longitude=%f", lat, log);
+    wxArrayString output;
+
+    wxExecute(command, output);
 }
 
 
 void MyFrame::OnMessages( wxCommandEvent &WXUNUSED(event) )
 {
-    new MyGraphicsFrame(this, "Messages");
+    new MyDevicesFrame(this, "Messages");
 }
 
 
 void MyFrame::OnDevices(wxCommandEvent& WXUNUSED(event))
 {
-    new MyGraphicsFrame(this, "Devices");
+    new MyDevicesFrame(this, "Devices");
 }
 
 
