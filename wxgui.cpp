@@ -259,6 +259,7 @@ MyFrame::MyFrame()
     wxString serverStr = "little-harbor.local.";
     m_config->Write("server", serverStr);
     m_config->Read("server", serverStr);
+    wxLogStatus(this, serverStr );
 
     // 500 width * 2750 height
     //m_canvas->SetScrollbars( 10, 10, 50, 275 );
