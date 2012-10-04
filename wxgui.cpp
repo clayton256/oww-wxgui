@@ -35,7 +35,19 @@
 #include <wx/listctrl.h>
 #include <wx/config.h>
 
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include "wxgui.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "owwl.h"
+#ifdef __cplusplus
+} /*extern "C"*/
+#endif
 
 wxString g_VersionStr = VERSIONSTR;
 
@@ -79,6 +91,12 @@ public:
 
     MyCanvas         *m_canvas;
     wxStatusBar      *m_statusbar;
+    
+    char             *m_hostname;
+    int               m_port;
+    SOCKET            m_s;
+    owwl_conn        *m_connection;
+
 private:
 
     DECLARE_DYNAMIC_CLASS(MyFrame)
@@ -261,12 +279,67 @@ MyFrame::MyFrame()
     m_config->Read("server", serverStr);
     wxLogStatus(this, serverStr );
 
+    {
+        m_s = -1;
+        m_port = 8899;
+        struct hostent  *host;
+        struct sockaddr *address;
+        struct sockaddr_in addr_in;
+
+        host = gethostbyname(serverStr.c_str()) ;
+
+        if (!host)
+        {
+          //g_warning("Unable to resolve host name \"%s\"\n", client->hostname) ;
+        }
+
+        addr_in.sin_family = AF_INET;
+        addr_in.sin_port   = htons(m_port);
+        /* Take the first ip address */
+        memcpy(&addr_in.sin_addr, host->h_addr_list[0], sizeof(addr_in.sin_addr));
+        address = (struct sockaddr *) &addr_in;
+        int addr_len = sizeof(addr_in);
+        m_s = socket(address->sa_family, SOCK_STREAM, 0);
+        if(m_s < 0)
+            SetStatusText("Error: s<0", 1);
+
+        m_connection = owwl_new_conn(m_s, NULL);
+        if (connect(m_s, address, addr_len) != 0)
+        {
+            SetStatusText("Error: connect failed");
+            close(m_s);
+        }
+        int retval = owwl_read(m_connection);
+        switch(retval)
+        {
+            case Owwl_Read_Error:
+                SetStatusText("Protocol error");
+                break;
+            case Owwl_Read_Disconnect:
+                SetStatusText("Server disconnect");
+                break;
+            case Owwl_Read_Again:
+                SetStatusText("Read again");
+                break;
+            case Owwl_Read_Read_And_Decoded:
+                SetStatusText("Read & Decode");
+                break;
+            default:
+                SetStatusText("Read default");
+                break;
+        }
+
+        wxLogStatus(this, wxT("lat:%.4f lon:%.4f"), m_connection->latitude,
+                                                   m_connection->longitude);
+    }
     // 500 width * 2750 height
     //m_canvas->SetScrollbars( 10, 10, 50, 275 );
 }
 
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
+    owwl_free(m_connection);
+    close(m_s);
     m_timer->Stop();
     delete m_timer;
     Close( true );

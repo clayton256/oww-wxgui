@@ -17,7 +17,7 @@ CC = gcc
 
 PROGRAM = Oww
 
-OBJECTS = wxgui.o #oww_trx.o devices.o client.o progstate.o
+OBJECTS = wxgui.o owwl.o 
 
 _VERSIONSTR="0.85.0-1"
 
@@ -25,13 +25,16 @@ _VERSIONSTR="0.85.0-1"
 
 .SUFFIXES:	.o .cpp .c
 
+all:    $(PROGRAM)
+
+owwl.o: ../oww_client-0.5.9/src/owwl.c
+	$(CC) -c -D__WXGUI__ -DNOGUI -DOWWL_DEBUG -I../oww_client-0.5.9/src/  -o $@ $<
+
 .c.o :
 	$(CC) -c -D__WXGUI__ -DNOGUI -o $@ ../oww-0.86.0/src/$<
 
 .cpp.o :
-	$(CC) -c `wx-config --cflags` -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -o $@ $<
-
-all:    $(PROGRAM)
+	$(CC) -c `wx-config --cflags` -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -I../oww_client-0.5.9/src/ -o $@ $<
 
 $(PROGRAM):	$(OBJECTS)
 	$(CC) -o $(PROGRAM) $(OBJECTS) `wx-config --libs`
