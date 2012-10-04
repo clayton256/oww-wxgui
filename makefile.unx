@@ -1,9 +1,9 @@
 #
-# File:		Makefile for samples
-# Author:	Robert Roebling
-# Created:	1999
-# Updated:	
-# Copyright:	(c) 1998 Robert Roebling
+# File: Makefile for oww-wxgui on Unix
+# Author: Mark Clayton
+# Created: 2012
+# Updated: 
+# Copyright:
 #
 # This makefile requires a Unix version of wxWindows
 # to be installed on your system. This is most often

@@ -8,25 +8,15 @@ all: Oww.app
 pixmaps/oww.icns: pixmaps/oww.png
 	sips -s format icns pixmaps/oww.png --out pixmaps/oww.icn
 
-devices.o: ../oww-0.86.1/src/devices.c ../oww-0.86.1/src/oww_trx.h
-	/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/bk-deps gcc -mmacosx-version-min=10.5 -c -o devices.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -D_FILE_OFFSET_BITS=64 -I./ -I/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib/wx/include/osx_cocoa-unicode-static-2.9 -I/Users/mark/Projects/wxWidgets-2.9.4/include -I../oww-0.86.1/src -DWX_PRECOMP -g -O0 -fno-common ../oww-0.86.1/src/devices.c
-
-client.o: ../oww-0.86.1/src/client.c ../oww-0.86.1/src/oww_trx.h
-	/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/bk-deps gcc -mmacosx-version-min=10.5 -c -o client.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -D_FILE_OFFSET_BITS=64 -I./ -I/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib/wx/include/osx_cocoa-unicode-static-2.9 -I/Users/mark/Projects/wxWidgets-2.9.4/include -I../oww-0.86.1/src -DWX_PRECOMP -g -O0 -fno-common ../oww-0.86.1/src/client.c
-
-progstate.o: ../oww-0.86.1/src/progstate.c ../oww-0.86.1/src/oww_trx.h
-	/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/bk-deps gcc -mmacosx-version-min=10.5 -c -o progstate.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -D_FILE_OFFSET_BITS=64 -I./ -I/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib/wx/include/osx_cocoa-unicode-static-2.9 -I/Users/mark/Projects/wxWidgets-2.9.4/include -I../oww-0.86.1/src -DWX_PRECOMP -g -O0 -fno-common ../oww-0.86.1/src/progstate.c
-
-oww_trx.o: ../oww-0.86.1/src/oww_trx.c ../oww-0.86.1/src/oww_trx.h
-	/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/bk-deps gcc -mmacosx-version-min=10.5 -c -o oww_trx.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -D_FILE_OFFSET_BITS=64 -I./ -I/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib/wx/include/osx_cocoa-unicode-static-2.9 -I/Users/mark/Projects/wxWidgets-2.9.4/include -I../oww-0.86.1/src -DWX_PRECOMP -g -O0 -fno-common ../oww-0.86.1/src/oww_trx.c
+owwl.o: ../oww_client-0.5.9/src/owwl.c ../oww_client-0.5.9/src/owwl.h
+	/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/bk-deps gcc -mmacosx-version-min=10.5 -c -o owwl.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -D_FILE_OFFSET_BITS=64 -I./ -I/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib/wx/include/osx_cocoa-unicode-static-2.9 -I/Users/mark/Projects/wxWidgets-2.9.4/include -I../oww_client-0.5.9/src -DWX_PRECOMP -g -O0 -fno-common ../oww_client-0.5.9/src/owwl.c
 
 
 wxgui.o: wxgui.cpp wxgui.h pixmaps/oww_xpm.xpm
 	/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/bk-deps g++ -mmacosx-version-min=10.5 -c -o wxgui.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -Wno-ctor-dtor-privacy -Woverloaded-virtual -Wno-deprecated-declarations -D_FILE_OFFSET_BITS=64 -I./ -I/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib/wx/include/osx_cocoa-unicode-static-2.9 -I/Users/mark/Projects/wxWidgets-2.9.4/include -DWX_PRECOMP -g -O0 -fno-common wxgui.cpp
 
-Oww: wxgui.o #oww_trx.o progstate.o client.o devices.o
-	g++ -mmacosx-version-min=10.5 -o Oww  wxgui.o -L/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib -framework IOKit -framework Carbon -framework Cocoa -framework AudioToolbox -framework System -framework OpenGL -lwx_osx_cocoau_adv-2.9 -lwx_osx_cocoau_html-2.9 -lwx_osx_cocoau_core-2.9 -lwx_baseu-2.9 -lwxtiff-2.9 -lwxjpeg-2.9 -lwxpng-2.9 -framework WebKit -lwxregexu-2.9 -framework IOKit -framework Carbon -framework Cocoa -framework AudioToolbox -framework System -framework OpenGL -lz -lpthread -liconv -lz -lpthread -liconv
-#devices.o client.o progstate.o oww_trx.o
+Oww: wxgui.o owwl.o
+	g++ -mmacosx-version-min=10.5 -o Oww owwl.o wxgui.o -L/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib -framework IOKit -framework Carbon -framework Cocoa -framework AudioToolbox -framework System -framework OpenGL -lwx_osx_cocoau_adv-2.9 -lwx_osx_cocoau_html-2.9 -lwx_osx_cocoau_core-2.9 -lwx_baseu-2.9 -lwxtiff-2.9 -lwxjpeg-2.9 -lwxpng-2.9 -framework WebKit -lwxregexu-2.9 -framework IOKit -framework Carbon -framework Cocoa -framework AudioToolbox -framework System -framework OpenGL -lz -lpthread -liconv -lz -lpthread -liconv
 
 Oww.app: Oww Info.plist.in pixmaps/oww.icns
 	SetFile -t APPL Oww
