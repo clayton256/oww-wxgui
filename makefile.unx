@@ -17,7 +17,7 @@ CC = gcc
 
 PROGRAM = Oww
 
-OBJECTS = wxgui.o oww_trx.o devices.o client.o progstate.o
+OBJECTS = wxgui.o #oww_trx.o devices.o client.o progstate.o
 
 _VERSIONSTR="0.85.0-1"
 
