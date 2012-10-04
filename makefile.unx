@@ -17,16 +17,19 @@ CC = gcc
 
 PROGRAM = Oww
 
-OBJECTS = wxgui.o
+OBJECTS = wxgui.o oww_trx.o devices.o
 
 _VERSIONSTR="0.85.0-1"
 
 # implementation
 
-.SUFFIXES:	.o .cpp
+.SUFFIXES:	.o .cpp .c
+
+.c.o :
+	$(CC) -c -D__WXGUI__ -DNOGUI -o $@ ../oww-0.86.0/src/$<
 
 .cpp.o :
-	$(CC) -c `wx-config --cflags` -DVERSIONSTR=\"$(_VERSIONSTR)\" -o $@ $<
+	$(CC) -c `wx-config --cflags` -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -o $@ $<
 
 all:    $(PROGRAM)
 
