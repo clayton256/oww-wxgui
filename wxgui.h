@@ -42,7 +42,7 @@ public:
     wxBitmap  top2_jpg;
     wxBitmap  top3_jpg;
 
-
+    MyFrame *m_frame;
     int xH, yH;
 
 private:

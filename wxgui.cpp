@@ -98,6 +98,10 @@ public:
     owwl_conn        *m_connection;
 
 private:
+    wxLongLong owwl_version_num(void)
+    {
+        return OWW_PROTO_VERSION;
+    }
 
     DECLARE_DYNAMIC_CLASS(MyFrame)
     DECLARE_EVENT_TABLE()
@@ -356,7 +360,7 @@ void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
 
     array.Add(wxEmptyString);
     array.Add("Version: " + g_VersionStr);
-    //array.Add("Version of g++: " + __VERSION__);
+    array.Add("Version of owwl: " + owwl_version_num().ToString());
 
     (void)wxMessageBox( wxJoin(array, '\n'),
                         "One wire Weather",
@@ -455,8 +459,10 @@ void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
-    wxFloat32 lat = 35.5149282;
-    wxFloat32 log = -82.903755;
+
+
+    wxFloat32 lat =  m_connection->latitude;
+    wxFloat32 log = m_connection->longitude;
     //new MyMapFrame(this, "Map");
     wxString command = wxString::Format("open /Applications/Safari.app http://www.mapquest.com/maps/map.adp?latlongtype=decimal&latitude=%f&longitude=%f", lat, log);
     m_config->Read("mapcmd", command);
@@ -509,12 +515,33 @@ RenderTimer::RenderTimer(MyFrame* f) : wxTimer()
  
 void RenderTimer::Notify()
 {
+
+    int retval = owwl_read(m_frame->m_connection);
+    switch(retval)
+    {
+        case Owwl_Read_Error:
+            m_frame->SetStatusText("Protocol error");
+            break;
+        case Owwl_Read_Disconnect:
+            m_frame->SetStatusText("Server disconnect");
+            break;
+        case Owwl_Read_Again:
+            m_frame->SetStatusText("Read again");
+            break;
+        case Owwl_Read_Read_And_Decoded:
+            m_frame->SetStatusText("Read & Decoded");
+            break;
+        default:
+            m_frame->SetStatusText("Read default");
+            break;
+    }
+
     m_frame->m_canvas->Refresh();
 }
  
 void RenderTimer::start()
 {
-    wxTimer::Start(40);
+    wxTimer::Start(1000);
 }
  
  
@@ -533,6 +560,7 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
 {
     wxImage image;
     SetBackgroundColour(*wxWHITE);
+    m_frame = (MyFrame *)parent;
 /*
     wxBitmap bitmap( 100, 100 );
 
@@ -647,6 +675,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     wxPaintDC dc( this );
     PrepareDC( dc );
 
+
     switch (counter % 3)
     {
         case 0:
@@ -693,7 +722,15 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     dc.SetPen( *wxBLACK_PEN );
     dc.DrawCircle( 350, 100, 30);
 
-
+    if(m_frame)
+    {
+        if(m_frame->m_connection)
+        {
+            wxString str;
+            str.Printf(wxT("%d"), m_frame->m_connection->data_count);
+            m_frame->SetStatusText(str, 1); 
+        }
+    }
 
     //dc.SetBrush( *wxWHITE_BRUSH );
     //dc.SetPen( *wxRED_PEN );
