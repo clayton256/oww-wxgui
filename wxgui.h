@@ -52,6 +52,16 @@ private:
     DECLARE_EVENT_TABLE()
 };
 
+class OwwlReaderTimer : public wxTimer
+{
+    MyFrame * m_frame;
+    
+public:
+    OwwlReaderTimer(MyFrame * canvas);
+    void Notify();
+    void start();
+};
+
 class RenderTimer : public wxTimer
 {
     MyFrame * m_frame;

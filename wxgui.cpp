@@ -75,7 +75,8 @@ public:
 
 class MyFrame: public wxFrame
 {
-    RenderTimer *m_timer;
+    OwwlReaderTimer *m_readerTimer;
+    RenderTimer *m_renderTimer;
     wxConfigBase *m_config;
 
 public:
@@ -273,9 +274,12 @@ MyFrame::MyFrame()
 
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(10,10) );
 
-    m_timer = new RenderTimer(this);
+    m_renderTimer = new RenderTimer(this);
     Show();
-    m_timer->start();
+    m_renderTimer->start();
+
+    m_readerTimer = new OwwlReaderTimer(this);
+    m_readerTimer->start();
 
     m_config = wxConfigBase::Get();
     wxString serverStr = "little-harbor.local.";
@@ -344,8 +348,8 @@ void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
     owwl_free(m_connection);
     close(m_s);
-    m_timer->Stop();
-    delete m_timer;
+    m_renderTimer->Stop();
+    delete m_renderTimer;
     Close( true );
 }
 
@@ -505,17 +509,14 @@ bool MyApp::OnInit()
 }
 
 
-
-
- 
-RenderTimer::RenderTimer(MyFrame* f) : wxTimer()
+OwwlReaderTimer::OwwlReaderTimer(MyFrame* f) : wxTimer()
 {
-    RenderTimer::m_frame = f;
+    OwwlReaderTimer::m_frame = f;
 }
  
-void RenderTimer::Notify()
+void OwwlReaderTimer::Notify()
 {
-
+#if 1
     int retval = owwl_read(m_frame->m_connection);
     switch(retval)
     {
@@ -535,17 +536,57 @@ void RenderTimer::Notify()
             m_frame->SetStatusText("Read default");
             break;
     }
+#endif
 
+}
+
+void OwwlReaderTimer::start()
+{
+    wxTimer::Start(10000);
+}
+
+
+
+
+
+RenderTimer::RenderTimer(MyFrame* f) : wxTimer()
+{
+    RenderTimer::m_frame = f;
+}
+
+void RenderTimer::Notify()
+{
+#if 0
+    int retval = owwl_read(m_frame->m_connection);
+    switch(retval)
+    {
+        case Owwl_Read_Error:
+            m_frame->SetStatusText("Protocol error");
+            break;
+        case Owwl_Read_Disconnect:
+            m_frame->SetStatusText("Server disconnect");
+            break;
+        case Owwl_Read_Again:
+            m_frame->SetStatusText("Read again");
+            break;
+        case Owwl_Read_Read_And_Decoded:
+            m_frame->SetStatusText("Read & Decoded");
+            break;
+        default:
+            m_frame->SetStatusText("Read default");
+            break;
+    }
+#endif
     m_frame->m_canvas->Refresh();
 }
- 
+
 void RenderTimer::start()
 {
-    wxTimer::Start(1000);
+    wxTimer::Start(100);
 }
- 
- 
- 
+
+
+
 //-----------------------------------------------------------------------------
 // MyCanvas
 //-----------------------------------------------------------------------------
