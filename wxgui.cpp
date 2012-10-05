@@ -93,7 +93,7 @@ public:
     MyCanvas         *m_canvas;
     wxStatusBar      *m_statusbar;
     
-    char             *m_hostname;
+    wxString          m_hostname;
     int               m_port;
     SOCKET            m_s;
     owwl_conn        *m_connection;
@@ -222,6 +222,61 @@ enum
     ID_DEVICES
 };
 
+char g_tempStr[50];
+char g_windStr[50];
+
+
+static int
+print_data(owwl_conn *conn, owwl_data *data, void *user_data)
+{
+  char linebuf[128], namebuff[128] ;
+  int length ;
+
+  if (data->str)
+  {
+    int arg = 0 ;
+
+    while (arg >= 0)
+    {
+        int unit_class, unit = OwwlUnit_Metric ;
+
+        unit_class = owwl_unit_class(data, arg) ;
+
+        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
+            unit = 1; //unit_choices[unit_class] ;
+
+        printf("In print_data %s %s %s %s\n", owwl_name(data, namebuff, 128, &length, 0),
+        owwl_arg_stem(data->device_type, data->device_subtype, arg),
+        data->str(data, linebuf, 128, unit, -1, arg), 
+        owwl_unit_name(data, unit, arg));
+
+        if (OwwlDev_Temperature == data->device_type)
+        {
+            strcpy(g_tempStr, data->str(data, linebuf, 128, unit, -1, arg));
+        }
+        if (OwwlDev_Wind == data->device_type)
+        {
+            strcpy(g_windStr, data->str(data, linebuf, 128, unit, -1, arg));
+        }
+/*
+        datalist_write(
+            (client_conn_struct *)user_data,
+            stream_data_arg_to_id(data, arg),
+            owwl_name(data, namebuff, 128, &length, 0),
+            owwl_arg_stem(data->device_type, data->device_subtype, arg),
+            data->str(data, linebuf, 128, unit, -1, arg),
+            owwl_unit_name(data, unit, arg)
+            );
+*/
+        arg = owwl_next_arg(data, arg) ;
+    }
+    //printf("\n") ;
+  }
+
+  return 0 ;
+}
+
+
 IMPLEMENT_DYNAMIC_CLASS( MyFrame, wxFrame )
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_MENU    (ID_ABOUT, MyFrame::OnAbout)
@@ -243,10 +298,21 @@ MyFrame::MyFrame()
 #endif
               )
 {
+
+    m_connection = NULL;
+    m_canvas = NULL;
+    m_statusbar = NULL;
+    m_hostname = wxString(wxT(/*"little-harbor.local."));*/ "localhost"));
+    m_port = 9988;
+    m_s = -1;
+
     SetIcon(wxICON(oww));
 
-    wxMenuBar *menu_bar = new wxMenuBar();
+    m_config = wxConfigBase::Get();
+    m_hostname = m_config->Read("server", m_hostname);
+    m_port = m_config->ReadLong("port", m_port);
 
+    wxMenuBar *menu_bar = new wxMenuBar();
     wxMenu *menuImage = new wxMenu;
     menuImage->Append( ID_AUXILLIARY, wxT("Auxilary"), "See other device values");
     menuImage->Append( ID_MESSAGES, wxT("Messages"), "See running log");
@@ -260,17 +326,16 @@ MyFrame::MyFrame()
     menuImage->AppendSeparator();
     menuImage->Append( ID_QUIT, wxT("E&xit\tCtrl-Q"));
     menu_bar->Append(menuImage, wxT("Menu"));
-
     SetMenuBar( menu_bar );
 
     m_statusbar = CreateStatusBar(2);
     int widths[] = { -1, 100 };
     SetStatusWidths( 2, widths );
-    SetStatusText("Hi There!", 1);
-    wxLogStatus(this, wxT(": (%d, %d), %.2f"), 5, 10, 22.2 );
+    //SetStatusText("Hi There!", 1);
+    //wxLogStatus(this, wxT("pr %d"), 0);
     Refresh();
 
-    SetTitle(GetTitle() + "://" + "192.168.1.22" + ":" + "8080");
+    SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
 
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(10,10) );
 
@@ -281,72 +346,77 @@ MyFrame::MyFrame()
     m_readerTimer = new OwwlReaderTimer(this);
     m_readerTimer->start();
 
-    m_config = wxConfigBase::Get();
-    wxString serverStr = "little-harbor.local.";
-    m_config->Write("server", serverStr);
-    m_config->Read("server", serverStr);
-    wxLogStatus(this, serverStr );
-
     {
-        m_s = -1;
-        m_port = 8899;
         struct hostent  *host;
         struct sockaddr *address;
         struct sockaddr_in addr_in;
 
-        host = gethostbyname(serverStr.c_str()) ;
+        host = gethostbyname(m_hostname.c_str()) ;
 
-        if (!host)
+        if (host)
         {
-          //g_warning("Unable to resolve host name \"%s\"\n", client->hostname) ;
+            addr_in.sin_family = AF_INET;
+            addr_in.sin_port   = htons(m_port);
+            /* Take the first ip address */
+            memcpy(&addr_in.sin_addr, host->h_addr_list[0], sizeof(addr_in.sin_addr));
+            address = (struct sockaddr *) &addr_in;
+            int addr_len = sizeof(addr_in);
+            m_s = socket(address->sa_family, SOCK_STREAM, 0);
+            if(m_s != -1)
+            {
+                m_connection = owwl_new_conn(m_s, NULL);
+                if (connect(m_s, address, addr_len) == 0)
+                {
+                    int retval = owwl_read(m_connection);
+                    switch(retval)
+                    {
+                        case Owwl_Read_Error:
+                            SetStatusText("Protocol error");
+                            break;
+                        case Owwl_Read_Disconnect:
+                            SetStatusText("Server disconnect");
+                            break;
+                        case Owwl_Read_Again:
+                            SetStatusText("Read again");
+                            break;
+                        case Owwl_Read_Read_And_Decoded:
+                            //SetStatusText("Read & Decode");
+                            break;
+                        default:
+                            SetStatusText("Read default");
+                            break;
+                    }
+
+                    //wxLogStatus(this, wxT("lat:%.4f lon:%.4f"), 
+                    //                                    m_connection->latitude,
+                    //                                    m_connection->longitude);
+
+                    owwl_foreach(m_connection, print_data, NULL/*client*/);
+            }
+            else
+            {
+                SetStatusText("Error: s<0", 1);
+            }
+            }
+            else
+            {
+                SetStatusText("Error: connect failed");
+                close(m_s);
+            }
+        }
+        else
+        {
+          wxLogStatus(this, wxT("Unable to resolve host name %s"), m_hostname);
         }
 
-        addr_in.sin_family = AF_INET;
-        addr_in.sin_port   = htons(m_port);
-        /* Take the first ip address */
-        memcpy(&addr_in.sin_addr, host->h_addr_list[0], sizeof(addr_in.sin_addr));
-        address = (struct sockaddr *) &addr_in;
-        int addr_len = sizeof(addr_in);
-        m_s = socket(address->sa_family, SOCK_STREAM, 0);
-        if(m_s < 0)
-            SetStatusText("Error: s<0", 1);
-
-        m_connection = owwl_new_conn(m_s, NULL);
-        if (connect(m_s, address, addr_len) != 0)
-        {
-            SetStatusText("Error: connect failed");
-            close(m_s);
-        }
-        int retval = owwl_read(m_connection);
-        switch(retval)
-        {
-            case Owwl_Read_Error:
-                SetStatusText("Protocol error");
-                break;
-            case Owwl_Read_Disconnect:
-                SetStatusText("Server disconnect");
-                break;
-            case Owwl_Read_Again:
-                SetStatusText("Read again");
-                break;
-            case Owwl_Read_Read_And_Decoded:
-                SetStatusText("Read & Decode");
-                break;
-            default:
-                SetStatusText("Read default");
-                break;
-        }
-
-        wxLogStatus(this, wxT("lat:%.4f lon:%.4f"), m_connection->latitude,
-                                                   m_connection->longitude);
     }
-    // 500 width * 2750 height
-    //m_canvas->SetScrollbars( 10, 10, 50, 275 );
+    return;
 }
 
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
     owwl_free(m_connection);
+    m_connection = NULL;
     close(m_s);
     m_renderTimer->Stop();
     delete m_renderTimer;
@@ -715,8 +785,23 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 {
     wxPaintDC dc( this );
     PrepareDC( dc );
+    owwl_data *od = NULL;
+    float t = 0.0, s = 0.0, g = 0.0;
+    float b = 0.0;
 
-
+    if(m_frame)
+    {
+        if(m_frame->m_connection)
+        {
+           od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Thermometer, 0);
+           t = od->device_data.temperature.T;
+           //owwl_foreach(m_frame->m_connection, print_data, NULL/*client*/);
+           od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
+           s = od->device_data.wind.speed;
+           g = od->device_data.wind.gust;
+           b = od->device_data.wind.bearing;
+        }
+    }
     switch (counter % 3)
     {
         case 0:
@@ -745,20 +830,62 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     if (body_jpg.IsOk())
         dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight());
 
-    if (bottom1_jpg.IsOk())
+    switch( lround(b/22.5) )
+    {
+        case 1:
+        case 2:
+            dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+            break;
+        case 3:
+        case 4:
+            dc.DrawBitmap( bottom2_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+            break;
+        case 5:
+        case 6:
+            dc.DrawBitmap( bottom3_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+            break;
+        case 7:
+        case 8:
+            dc.DrawBitmap( bottom4_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+            break;
+        case 9:
+        case 10:
+            dc.DrawBitmap( bottom5_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+            break;
+        case 11:
+        case 12:
+            dc.DrawBitmap( bottom6_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+            break;
+        case 13:
+        case 14:
+            dc.DrawBitmap( bottom7_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+            break;
+        case 15:
+        case 16:
+            dc.DrawBitmap( bottom8_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+            break;
+        default:
+            dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+    }
+
+
+
+/*    if (bottom1_jpg.IsOk())
         dc.DrawBitmap( bottom8_jpg, 0, 
             top1_jpg.GetHeight() + body_jpg.GetHeight());
-
+*/
     if (rh_png.IsOk())
         dc.DrawBitmap( rh_png, 300, 180 );
-
 
     dc.SetTextForeground( wxT("WHITE") );
     wxString now = wxNow ();
     dc.DrawText (now, 100, 10);
-    dc.DrawText( wxT("-32.4F"), 30, 135 );
+    dc.DrawText( wxString::Format("%2.1f C", t), 30, 130 );
 
-    dc.DrawText( wxT("22 mph"), 365, 20 );
+    dc.DrawText( wxString::Format("%2.1f m/s", s), 365, 20 );
+    dc.DrawText( wxString::Format("%2.1f gusts", g), 365, 40 );
+    dc.DrawText( wxString::Format("%2.1f bearing", b), 365, 60 );
+
     dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
     dc.SetPen( *wxBLACK_PEN );
     dc.DrawCircle( 350, 100, 30);
