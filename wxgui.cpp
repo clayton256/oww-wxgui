@@ -762,7 +762,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
     dc.SetPen( *wxBLACK_PEN );
     dc.DrawCircle( 350, 100, 30);
-
+#if 0
     if(m_frame)
     {
         if(m_frame->m_connection)
@@ -772,7 +772,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             m_frame->SetStatusText(str, 1); 
         }
     }
-
+#endif
     //dc.SetBrush( *wxWHITE_BRUSH );
     //dc.SetPen( *wxRED_PEN );
     //dc.DrawRectangle( 170, 50, 60, 60 );
