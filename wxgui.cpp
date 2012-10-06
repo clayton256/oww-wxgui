@@ -38,6 +38,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <errno.h>
 
 #include "wxgui.h"
 
@@ -246,7 +247,7 @@ print_data(owwl_conn *conn, owwl_data *data, void *user_data)
             unit = 1; //unit_choices[unit_class] ;
 
         printf("In print_data %s %s %s %s\n", owwl_name(data, namebuff, 128, &length, 0),
-        owwl_arg_stem(data->device_type, data->device_subtype, arg),
+        owwl_arg_stem((owwl_device_type_enum)data->device_type, data->device_subtype, arg),
         data->str(data, linebuf, 128, unit, -1, arg), 
         owwl_unit_name(data, unit, arg));
 
@@ -302,8 +303,8 @@ MyFrame::MyFrame()
     m_connection = NULL;
     m_canvas = NULL;
     m_statusbar = NULL;
-    m_hostname = wxString(wxT(/*"little-harbor.local."));*/ "localhost"));
-    m_port = 9988;
+    m_hostname = wxString(wxT("localhost"));
+    m_port = 8899;
     m_s = -1;
 
     SetIcon(wxICON(oww));
@@ -350,14 +351,11 @@ MyFrame::MyFrame()
         struct hostent  *host;
         struct sockaddr *address;
         struct sockaddr_in addr_in;
-
         host = gethostbyname(m_hostname.c_str()) ;
-
         if (host)
         {
             addr_in.sin_family = AF_INET;
             addr_in.sin_port   = htons(m_port);
-            /* Take the first ip address */
             memcpy(&addr_in.sin_addr, host->h_addr_list[0], sizeof(addr_in.sin_addr));
             address = (struct sockaddr *) &addr_in;
             int addr_len = sizeof(addr_in);
@@ -386,30 +384,25 @@ MyFrame::MyFrame()
                             SetStatusText("Read default");
                             break;
                     }
-
-                    //wxLogStatus(this, wxT("lat:%.4f lon:%.4f"), 
-                    //                                    m_connection->latitude,
-                    //                                    m_connection->longitude);
-
                     owwl_foreach(m_connection, print_data, NULL/*client*/);
+                }
+                else
+                {
+                    wxLogStatus("Error: connect failed %d", errno);
+                    close(m_s);
+                }
             }
             else
             {
-                SetStatusText("Error: s<0", 1);
-            }
-            }
-            else
-            {
-                SetStatusText("Error: connect failed");
-                close(m_s);
+                wxLogStatus("Error: s<0 %d", errno);
             }
         }
         else
         {
           wxLogStatus(this, wxT("Unable to resolve host name %s"), m_hostname);
         }
-
     }
+
     return;
 }
 
