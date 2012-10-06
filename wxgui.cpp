@@ -533,13 +533,10 @@ void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
-
-
-    wxFloat32 lat =  m_connection->latitude;
-    wxFloat32 log = m_connection->longitude;
-    //new MyMapFrame(this, "Map");
-    wxString command = wxString::Format("open /Applications/Safari.app http://www.mapquest.com/maps/map.adp?latlongtype=decimal&latitude=%f&longitude=%f", lat, log);
+    wxString command;
     m_config->Read("mapcmd", command);
+    command = wxString::Format(command, 35.5, -83.6);//m_connection->latitude, m_connection->longitude);
+    printf(command);
     wxArrayString output;
     wxExecute(command, output);
 }
