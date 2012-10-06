@@ -140,7 +140,7 @@ private:
         SetMenuBar(mbar);
 
         m_statusBar = CreateStatusBar(2);
-        SetStatusText("Loading", 1);
+        //SetStatusText("Loading", 1);
 
         UpdateStatusBar();
         m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
@@ -175,7 +175,7 @@ private:
         wxPaintDC dc(this);
 
         const wxSize size = GetClientSize();
-        m_statusBar->SetStatusText("Running...", 1);
+        //m_statusBar->SetStatusText("Running...", 1);
     }
 
     void OnSave(wxCommandEvent& WXUNUSED(event))
@@ -310,7 +310,7 @@ MyFrame::MyFrame()
     SetIcon(wxICON(oww));
 
     m_config = wxConfigBase::Get();
-    m_hostname = m_config->Read("server", m_hostname);
+    m_config->Read("server", &m_hostname);
     m_port = m_config->ReadLong("port", m_port);
 
     wxMenuBar *menu_bar = new wxMenuBar();
@@ -338,7 +338,7 @@ MyFrame::MyFrame()
 
     SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
 
-    m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(10,10) );
+    m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(474,441) );
 
     m_renderTimer = new RenderTimer(this);
     Show();
@@ -526,12 +526,20 @@ void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
-    wxString command;
-    m_config->Read("mapcmd", command);
-    command = wxString::Format(command, 35.5, -83.6);//m_connection->latitude, m_connection->longitude);
-    printf(command);
+    wxString url;
+    m_config->Read("mapcmd", &url);
+    (void)wxMessageBox( url,
+                        "One wire Weather",
+                        wxICON_INFORMATION | wxOK );
+
+    char command[2048];
+    sprintf(command, url, m_connection->latitude, m_connection->longitude);
+    (void)wxMessageBox( wxString(command),
+                        "One wire Weather",
+                        wxICON_INFORMATION | wxOK );
+
     wxArrayString output;
-    wxExecute(command, output);
+    wxExecute(wxString(command), output);
 }
 
 
@@ -590,7 +598,7 @@ void OwwlReaderTimer::Notify()
             m_frame->SetStatusText("Read again");
             break;
         case Owwl_Read_Read_And_Decoded:
-            m_frame->SetStatusText("Read & Decoded");
+            //m_frame->SetStatusText("Read & Decoded");
             break;
         default:
             m_frame->SetStatusText("Read default");
