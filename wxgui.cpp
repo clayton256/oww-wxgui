@@ -112,6 +112,8 @@ public:
 private:
     wxGrid *m_grid;
     wxStatusBar * m_statusBar;
+    enum gridColumns : int {gridColName, gridColData, gridColValue, gridColUnit};
+
 
     //int unit_choices[OWWL_UNIT_CLASS_LIMIT];
 
@@ -131,22 +133,19 @@ private:
         wxMenuBar *mbar = new wxMenuBar;
         mbar->Append(menu, wxT("Something here?"));
         SetMenuBar(mbar);
-#endif
+
         m_statusBar = CreateStatusBar(2);
         UpdateStatusBar();
-
+#endif
         m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
         m_grid->CreateGrid(0, 4);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Name  ", 0);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Data  ", 1);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Value ", 2);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Unit  ", 3);
-
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Name  ", gridColName);
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Data  ", gridColData);
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Value ", gridColValue);
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Unit  ", gridColUnit);
         FillCells();
-        //owwl_foreach(m_connection, aux_print_data, NULL/*client*/);
-
         m_grid->SetRowLabelSize(wxGRID_AUTOSIZE);
         m_grid->SetColLabelSize(wxGRID_AUTOSIZE);
         m_grid->AutoSize();
@@ -156,32 +155,31 @@ private:
 
         return true;
     }
-
+#if 0
     void OnEraseBackground(wxEraseEvent& WXUNUSED(event))
     {
         // do nothing here to be able to see how transparent images are shown
     }
-
+#endif
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
         wxPaintDC dc(this);
-        const wxSize size = GetClientSize();
 
         FillCells();
 
         m_grid->AutoSize();
     }
-
+#if 0
     void OnSave(wxCommandEvent& WXUNUSED(event))
     {
     }
 
     void UpdateStatusBar()
     {
-        //wxLogStatus(this, wxT("Image size: (%d, %d), zoom %.2f"), 5, 10, 22.2 );
+        wxLogStatus(this, wxT("Image size: (%d, %d), zoom %.2f"), 5, 10, 22.2 );
         Refresh();
     }
-
+#endif
     DECLARE_EVENT_TABLE()
 };
 
@@ -281,10 +279,11 @@ private:
 //-----------------------------------------------------------------------------
 
 BEGIN_EVENT_TABLE(MyAuxilliaryFrame, wxFrame)
-    EVT_ERASE_BACKGROUND(MyAuxilliaryFrame::OnEraseBackground)
     EVT_PAINT(MyAuxilliaryFrame::OnPaint)
-
+#if 0
+    EVT_ERASE_BACKGROUND(MyAuxilliaryFrame::OnEraseBackground)
     EVT_MENU(wxID_SAVE, MyAuxilliaryFrame::OnSave)
+#endif
 END_EVENT_TABLE()
 
 //-----------------------------------------------------------------------------
@@ -414,8 +413,6 @@ MyFrame::MyFrame()
     m_statusbar = CreateStatusBar(2);
     int widths[] = { -1, 200 };
     SetStatusWidths( 2, widths );
-    //SetStatusText("Hi There!", 1);
-    //wxLogStatus(this, wxT("pr %d"), 0);
     Refresh();
 
     SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
@@ -624,7 +621,7 @@ void MyFrame::OnSetup( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
-    m_auxilliaryFrame = new MyAuxilliaryFrame(this, "Aux");
+    m_auxilliaryFrame = new MyAuxilliaryFrame(this, "Auxilliary");
 }
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
@@ -726,10 +723,9 @@ void RenderTimer::Notify()
     if(NULL != m_frame->m_auxilliaryFrame)
     {
         m_frame->m_auxilliaryFrame->Refresh();
-        m_frame->m_auxilliaryFrame->Update();
-        m_frame->SetStatusText("auxFrame != NULL", 1);
+        //m_frame->SetStatusText("auxFrame != NULL", 1);
     }
-    else m_frame->SetStatusText("auxFrame == NULL", 1);
+    else //m_frame->SetStatusText("auxFrame == NULL", 1);
     m_frame->m_canvas->Refresh();
 }
 
