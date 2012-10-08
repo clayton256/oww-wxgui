@@ -112,8 +112,7 @@ public:
 private:
     wxGrid *m_grid;
     wxStatusBar * m_statusBar;
-    enum gridColumns : int {gridColName, gridColData, gridColValue, gridColUnit};
-
+    enum gridColumns {gridColName, gridColData, gridColValue, gridColUnit};
 
     //int unit_choices[OWWL_UNIT_CLASS_LIMIT];
 
@@ -182,6 +181,10 @@ private:
 #endif
     DECLARE_EVENT_TABLE()
 };
+
+
+//enum MyAuxilliaryFrame::gridColumns : int {gridColName, gridColData, gridColValue, gridColUnit};
+
 
 int MyAuxilliaryFrame::FillCells(void)
 {
@@ -980,7 +983,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             dc.SetPen( *wxRED_PEN );
             dc.DrawRectangle( 170, 50, 60, 60 );
 
-            dc.SetTextForeground( wxT("YELLOW") );
+            dc.SetTextForeground( wxT("BLUE") );
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
             if(NULL != od)
