@@ -34,6 +34,7 @@
 #include <wx/grid.h>
 #include <wx/listctrl.h>
 #include <wx/config.h>
+#include <wx/aboutdlg.h>
 
 #include <netdb.h>
 #include <sys/socket.h>
@@ -51,6 +52,7 @@ extern "C" {
 #endif
 
 wxString g_VersionStr = VERSIONSTR;
+
 
 #ifndef wxHAS_IMAGES_IN_RESOURCES
     #include "pixmaps/oww_xpm.xpm"
@@ -70,6 +72,160 @@ public:
     virtual bool OnInit();
 };
 
+
+
+//-----------------------------------------------------------------------------
+// MyAuxilliaryFrame
+//-----------------------------------------------------------------------------
+
+class MyAuxilliaryFrame : public wxFrame
+{
+//DECLARE_CLASS(MyAuxilliaryFrame)
+public:
+    MyAuxilliaryFrame(wxFrame *parent, const wxString& desc)
+    {
+        Create(parent, desc); 
+    }
+
+private:
+    wxGrid *m_grid;
+    wxStatusBar * m_statusBar;
+    //int unit_choices[OWWL_UNIT_CLASS_LIMIT];
+#if AUX_PRINT_DATA
+    static int aux_print_data(owwl_conn *conn, owwl_data *data, void *user_data)
+    {
+        char linebuf[128], namebuff[128];
+        int length;
+        if(NULL != conn)
+        {
+            if(NULL != data)
+            {
+                if (NULL != data->str)
+                {
+                    int arg = 0 ;
+                    int cntr = 0;
+
+                    while (arg >= 0)
+                    {
+                        int unit_class, unit = OwwlUnit_Metric ;
+
+                        unit_class = owwl_unit_class(data, arg) ;
+
+                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
+                            unit = OwwlUnit_Metric; //unit_choices[unit_class] ;
+
+                        m_grid->AppendRows();
+                        m_grid->SetCellValue(owwl_name(data, namebuff, 128, &length, 0), cntr, 0);
+                        m_grid->SetCellValue(data->str(data, linebuf, 128, unit, -1, arg), cntr, 1);
+                        m_grid->SetCellValue(owwl_unit_name(data, unit, arg), cntr, 2);
+                        cntr++;
+                        arg = owwl_next_arg(data, arg) ;
+                    }
+                }else m_statusBar->SetStatusText("data->str NULL", 1);
+            }else m_statusBar->SetStatusText("conn-data NULL", 1);
+        }else m_statusBar->SetStatusText("g_connect NULL", 1);
+        return 0;
+    }
+#endif
+    bool Create(wxFrame *parent, const wxString& desc)
+    {
+        if (!wxFrame::Create(parent, wxID_ANY, desc, wxDefaultPosition, wxDefaultSize,
+                              wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)))
+        {
+            return false;
+        }
+        m_grid = (wxGrid*)NULL;
+#if 0
+        wxMenu *menu = new wxMenu;
+        menu->Append(wxID_SAVE);
+        wxMenuBar *mbar = new wxMenuBar;
+        mbar->Append(menu, wxT("Something here?"));
+        SetMenuBar(mbar);
+#endif
+        m_statusBar = CreateStatusBar(2);
+        UpdateStatusBar();
+
+        m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
+        m_grid->EnableEditing(false);
+        m_grid->EnableDragRowSize(false);
+        m_grid->CreateGrid(0, 3);
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Name  ", 0);
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Value ", 1);
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Unit  ", 2);
+
+        //owwl_foreach(m_connection, aux_print_data, NULL/*client*/);
+
+        m_grid->SetRowLabelSize(wxGRID_AUTOSIZE);
+        m_grid->SetColLabelSize(wxGRID_AUTOSIZE);
+        m_grid->AutoSize();
+        SetClientSize(m_grid->GetSize());
+
+        Show();
+
+        return true;
+    }
+
+    void OnEraseBackground(wxEraseEvent& WXUNUSED(event))
+    {
+        // do nothing here to be able to see how transparent images are shown
+    }
+
+    void OnPaint(wxPaintEvent& WXUNUSED(event))
+    {
+        wxPaintDC dc(this);
+        owwl_conn *conn = NULL;
+        owwl_data *data = NULL;
+        const wxSize size = GetClientSize();
+        char linebuf[128], namebuff[128];
+        int length;
+SetStatusText("got to onpaint", 1);
+        if(NULL != conn)
+        {
+            if(NULL != conn->data)
+            {
+                data = conn->data;
+                if (data->str)
+                {
+                    int arg = 0 ;
+                    int cntr = 0;
+
+                    while (arg >= 0)
+                    {
+                        int unit_class, unit = OwwlUnit_Metric ;
+
+                        unit_class = owwl_unit_class(data, arg) ;
+
+                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
+                            unit = OwwlUnit_Metric; //unit_choices[unit_class] ;
+
+                        m_grid->AppendRows();
+                        m_grid->SetCellValue(owwl_name(data, namebuff, 128, &length, 0), cntr, 0);
+                        m_grid->SetCellValue(data->str(data, linebuf, 128, unit, -1, arg), cntr, 1);
+                        m_grid->SetCellValue(owwl_unit_name(data, unit, arg), cntr, 2);
+                        cntr++;
+                        arg = owwl_next_arg(data, arg) ;
+                    }
+                }else SetStatusText("data->str NULL", 1);
+            }else SetStatusText("conn-data NULL", 1);
+        }else SetStatusText("g_connect NULL", 1);
+        m_grid->AutoSize();
+    }
+
+    void OnSave(wxCommandEvent& WXUNUSED(event))
+    {
+    }
+
+    void UpdateStatusBar()
+    {
+        //wxLogStatus(this, wxT("Image size: (%d, %d), zoom %.2f"), 5, 10, 22.2 );
+        Refresh();
+    }
+
+    DECLARE_EVENT_TABLE()
+};
+
+
+
 // ----------------------------------------------------------------------------
 // MyFrame
 // ----------------------------------------------------------------------------
@@ -79,6 +235,7 @@ class MyFrame: public wxFrame
     OwwlReaderTimer *m_readerTimer;
     RenderTimer *m_renderTimer;
     wxConfigBase *m_config;
+    MyAuxilliaryFrame *m_auxilliaryFrame;
 
 public:
     MyFrame();
@@ -111,88 +268,6 @@ private:
 
 
 
-class MyAuxilliaryFrame : public wxFrame
-{
-//DECLARE_CLASS(MyAuxilliaryFrame)
-public:
-    MyAuxilliaryFrame(wxFrame *parent, const wxString& desc)
-    {
-        Create(parent, desc); 
-    }
-
-private:
-    wxGrid *m_grid;
-    wxStatusBar * m_statusBar;
-    bool Create(wxFrame *parent, const wxString& desc)
-    {
-        if ( !wxFrame::Create(parent, wxID_ANY,
-                              wxString::Format(wxT("Image from %s"), desc),
-                              wxDefaultPosition, wxDefaultSize,
-                              wxDEFAULT_FRAME_STYLE | wxFULL_REPAINT_ON_RESIZE) )
-            return false;
-
-        m_grid = (wxGrid*)NULL;
-        wxMenu *menu = new wxMenu;
-        menu->Append(wxID_SAVE);
-
-        wxMenuBar *mbar = new wxMenuBar;
-        mbar->Append(menu, wxT("Something here?"));
-        SetMenuBar(mbar);
-
-        m_statusBar = CreateStatusBar(2);
-        //SetStatusText("Loading", 1);
-
-        UpdateStatusBar();
-        m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
-        m_grid->EnableEditing(false);
-        m_grid->EnableDragRowSize(false);
-        m_grid->CreateGrid(0, 3);
-        m_grid->SetLabelValue(wxHORIZONTAL, "Name", 0);
-        m_grid->SetLabelValue(wxHORIZONTAL, "Value", 1);
-        m_grid->SetLabelValue(wxHORIZONTAL, "Unit", 2);
-        m_grid->AppendRows(12);
-        m_grid->SetCellValue("Wind Speed", 0, 0);
-        m_grid->SetCellValue("22.2", 0, 1);
-        m_grid->SetCellValue("mph", 0, 2);
-        m_grid->AutoSize();
-//        m_grid->UpdateDimensions();
-        SetClientSize(m_grid->GetSize());
-//        SetSize(wxSize((2+m_grid->GetRows())*m_grid->GetRowSize(0), 
-//                        m_grid->GetColLabelSize()+m_grid->GetColSize(0)
-//                                 +m_grid->GetColSize(1)+m_grid->GetColSize(2)));
-        Show();
-
-        return true;
-    }
-
-    void OnEraseBackground(wxEraseEvent& WXUNUSED(event))
-    {
-        // do nothing here to be able to see how transparent images are shown
-    }
-
-    void OnPaint(wxPaintEvent& WXUNUSED(event))
-    {
-        wxPaintDC dc(this);
-
-        const wxSize size = GetClientSize();
-        //m_statusBar->SetStatusText("Running...", 1);
-    }
-
-    void OnSave(wxCommandEvent& WXUNUSED(event))
-    {
-    }
-
-    void UpdateStatusBar()
-    {
-        wxLogStatus(this, wxT("Image size: (%d, %d), zoom %.2f"), 5, 10, 22.2 );
-        Refresh();
-    }
-
-
-    DECLARE_EVENT_TABLE()
-};
-
-
 // ============================================================================
 // implementations
 // ============================================================================
@@ -223,9 +298,10 @@ enum
     ID_DEVICES
 };
 
+#if 0
 char g_tempStr[50];
 char g_windStr[50];
-
+#endif
 
 static int
 print_data(owwl_conn *conn, owwl_data *data, void *user_data)
@@ -245,7 +321,7 @@ print_data(owwl_conn *conn, owwl_data *data, void *user_data)
 
         if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
             unit = 1; //unit_choices[unit_class] ;
-
+#if 0
         printf("In print_data %s %s %s %s\n", owwl_name(data, namebuff, 128, &length, 0),
         owwl_arg_stem((owwl_device_type_enum)data->device_type, data->device_subtype, arg),
         data->str(data, linebuf, 128, unit, -1, arg), 
@@ -269,9 +345,9 @@ print_data(owwl_conn *conn, owwl_data *data, void *user_data)
             owwl_unit_name(data, unit, arg)
             );
 */
+#endif
         arg = owwl_next_arg(data, arg) ;
     }
-    //printf("\n") ;
   }
 
   return 0 ;
@@ -293,10 +369,11 @@ MyFrame::MyFrame()
     : wxFrame( (wxFrame *)NULL, wxID_ANY, wxT("Oww"),
                 wxPoint(20, 20), 
 #ifdef __WXGTK__
-                wxSize(474, 441+30)
+                wxSize(474, 441+40),
 #else
-                wxSize(474, 441)
+                wxSize(474, 441),
 #endif
+                wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)
               )
 {
 
@@ -306,6 +383,7 @@ MyFrame::MyFrame()
     m_hostname = wxString(wxT("localhost"));
     m_port = 8899;
     m_s = -1;
+    m_auxilliaryFrame = NULL;
 
     SetIcon(wxICON(oww));
 
@@ -330,7 +408,7 @@ MyFrame::MyFrame()
     SetMenuBar( menu_bar );
 
     m_statusbar = CreateStatusBar(2);
-    int widths[] = { -1, 100 };
+    int widths[] = { -1, 200 };
     SetStatusWidths( 2, widths );
     //SetStatusText("Hi There!", 1);
     //wxLogStatus(this, wxT("pr %d"), 0);
@@ -419,6 +497,7 @@ void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
 {
+#if 0
     wxArrayString array;
 
     array.Add("Oww");
@@ -428,10 +507,30 @@ void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
     array.Add(wxEmptyString);
     array.Add("Version: " + g_VersionStr);
     array.Add("Version of owwl: " + owwl_version_num().ToString());
+        m_hyperlink = new wxGenericHyperlinkCtrl(this,
+                                          wxID_ANY,
+                                          wxT("Oww website"),
+                                          wxT("oww.sourceforge.net"));
+        m_hyperlink = new wxGenericHyperlinkCtrl(this,
+                                          wxID_ANY,
+                                          wxT("wxWidgets website"),
+                                          wxT("www.wxwidgets.org"));
 
     (void)wxMessageBox( wxJoin(array, '\n'),
                         "One wire Weather",
                         wxICON_INFORMATION | wxOK );
+#else
+    wxAboutDialogInfo info;
+    //info.SetIcon();
+    info.SetName(_("Oww"));
+    info.SetDescription(_("One wire Weather"));
+    info.SetWebSite(_("oww.sourceforge.net"), _("Oww website"));
+    info.SetVersion(g_VersionStr);
+    info.SetCopyright(_T("(C) 2012 Mark Clayton <mark_clayton@users.sourceforge.net>"));
+
+    wxAboutBox(info);
+    
+#endif
 }
 
 class MyDevicesFrame : public wxFrame
@@ -521,22 +620,18 @@ void MyFrame::OnSetup( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
-    new MyAuxilliaryFrame(this, "Aux");
+    m_auxilliaryFrame = new MyAuxilliaryFrame(this, "Aux");
 }
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
     wxString url;
     m_config->Read("mapcmd", &url);
-    (void)wxMessageBox( url,
-                        "One wire Weather",
-                        wxICON_INFORMATION | wxOK );
+//    (void)wxMessageBox( url, "Oww", wxICON_INFORMATION|wxOK);
 
     char command[2048];
     sprintf(command, url, m_connection->latitude, m_connection->longitude);
-    (void)wxMessageBox( wxString(command),
-                        "One wire Weather",
-                        wxICON_INFORMATION | wxOK );
+//    (void)wxMessageBox( wxString(command), "Oww", wxICON_INFORMATION|wxOK);
 
     wxArrayString output;
     wxExecute(wxString(command), output);
@@ -784,123 +879,185 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     wxPaintDC dc( this );
     PrepareDC( dc );
     owwl_data *od = NULL;
-    float t = 0.0, s = 0.0, g = 0.0;
-    float b = 0.0;
+
+    wxFont f = wxFont(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+    dc.SetFont(f);
 
     if(m_frame)
     {
         if(m_frame->m_connection)
         {
-           od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Thermometer, 0);
-           t = od->device_data.temperature.T;
-           //owwl_foreach(m_frame->m_connection, print_data, NULL/*client*/);
-           od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
-           s = od->device_data.wind.speed;
-           g = od->device_data.wind.gust;
-           b = od->device_data.wind.bearing;
+            float speed = 0.0;
+            float gust = 0.0;
+            float bearing = 0.0;
+
+            dc.SetTextForeground( wxT("WHITE") );
+
+            od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
+            if(NULL != od)
+            {
+               speed = od->device_data.wind.speed;
+               gust = od->device_data.wind.gust;
+               bearing = od->device_data.wind.bearing;
+            }
+            switch (counter % 3)
+            {
+                case 0:
+                if (top1_jpg.IsOk())
+                    {
+                    dc.DrawBitmap( top1_jpg, 0, 0 );
+                    }
+                    counter++;
+                    break;
+
+                case 1:
+                    if (top2_jpg.IsOk())
+                    {
+                    dc.DrawBitmap( top2_jpg, 0, 0 );
+                    }
+                    counter++;
+                    break;
+                case 2:
+                    if (top3_jpg.IsOk())
+                    {
+                    dc.DrawBitmap( top3_jpg, 0, 0 );
+                    }
+                    counter = 0;
+            }
+
+            if (body_jpg.IsOk())
+                dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight());
+
+            switch( lround(bearing/22.5) )
+            {
+                case 1:
+                case 2:
+                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    break;
+                case 3:
+                case 4:
+                    dc.DrawBitmap( bottom2_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    break;
+                case 5:
+                case 6:
+                    dc.DrawBitmap( bottom3_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    break;
+                case 7:
+                case 8:
+                    dc.DrawBitmap( bottom4_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    break;
+                case 9:
+                case 10:
+                    dc.DrawBitmap( bottom5_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    break;
+                case 11:
+                case 12:
+                    dc.DrawBitmap( bottom6_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    break;
+                case 13:
+                case 14:
+                    dc.DrawBitmap( bottom7_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    break;
+                case 15:
+                case 16:
+                    dc.DrawBitmap( bottom8_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    break;
+                default:
+                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+            }
+            if(NULL != od)
+            {
+                dc.DrawText( wxString::Format("%2.1f m/s",     od->device_data.wind.speed  ), 365, 20);
+                dc.DrawText( wxString::Format("%2.1f gusts",   od->device_data.wind.gust   ), 365, 40);
+                dc.DrawText( wxString::Format("%2.1f bearing", od->device_data.wind.bearing), 365, 60);
+            }
+
+            od = owwl_find(m_frame->m_connection, OwwlDev_Humidity, 0, 0);
+            if(NULL != od)
+            {
+                if (rh_png.IsOk())
+                {
+                    dc.DrawBitmap( rh_png, 300, 180 );
+                }
+                dc.DrawText( wxString::Format("%2.1f %%", od->device_data.humidity.RH), 365, 180);
+            }
+
+            od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Thermometer, 0);
+            if(NULL != od)
+            {
+                dc.DrawText( wxString::Format("%2.1f C", od->device_data.temperature.T), 30, 125);
+            }
+            dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
+            dc.SetPen( *wxBLACK_PEN );
+            dc.DrawCircle( 350, 100, 30);
+            dc.SetBrush( *wxWHITE_BRUSH );
+            dc.SetPen( *wxRED_PEN );
+            dc.DrawRectangle( 170, 50, 60, 60 );
+
+            dc.SetTextForeground( wxT("YELLOW") );
+
+            od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
+            if(NULL != od)
+            {
+                dc.DrawText( wxString::Format("BP: %2.1f mm/Hg", od->device_data.barom.bp), 280, 300);
+            }
+
+            od = owwl_find(m_frame->m_connection, OwwlDev_Rain, 0, 0);
+            if(NULL != od)
+            {
+                wxDateTime rain_time = wxDateTime(od->device_data.rain.rain_reset_time);
+                dc.DrawText( wxString::Format("Rain: %2.1f mm since %s", 
+                                                        od->device_data.rain.rain_since_reset,
+                                                        rain_time.FormatTime()), 180, 340);
+                                                        //od->device_data.rain.rain_count,
+                dc.DrawText( wxString::Format("(%2.1f mm/hr)", 
+                                                        od->device_data.rain.rain_rate), 220, 360);
+            }
+
+            wxString now = wxNow ();
+            m_frame->SetStatusText(now);
         }
     }
-    switch (counter % 3)
-    {
-        case 0:
-        if (top1_jpg.IsOk())
-        {
-        dc.DrawBitmap( top1_jpg, 0, 0 );
-        }
-            counter++;
-            break;
-
-        case 1:
-        if (top2_jpg.IsOk())
-        {
-        dc.DrawBitmap( top2_jpg, 0, 0 );
-        }
-            counter++;
-            break;
-        case 2:
-        if (top3_jpg.IsOk())
-        {
-        dc.DrawBitmap( top3_jpg, 0, 0 );
-        }
-            counter = 0;
-    }    
-
-    if (body_jpg.IsOk())
-        dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight());
-
-    switch( lround(b/22.5) )
-    {
-        case 1:
-        case 2:
-            dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
-            break;
-        case 3:
-        case 4:
-            dc.DrawBitmap( bottom2_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
-            break;
-        case 5:
-        case 6:
-            dc.DrawBitmap( bottom3_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
-            break;
-        case 7:
-        case 8:
-            dc.DrawBitmap( bottom4_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
-            break;
-        case 9:
-        case 10:
-            dc.DrawBitmap( bottom5_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
-            break;
-        case 11:
-        case 12:
-            dc.DrawBitmap( bottom6_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
-            break;
-        case 13:
-        case 14:
-            dc.DrawBitmap( bottom7_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
-            break;
-        case 15:
-        case 16:
-            dc.DrawBitmap( bottom8_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
-            break;
-        default:
-            dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
-    }
 
 
+#if 0
+    wxScopedPtr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
+    wxGraphicsFont gf = gc->CreateFont(wxNORMAL_FONT->GetPixelSize().y, wxT("WHITE") );
 
-/*    if (bottom1_jpg.IsOk())
-        dc.DrawBitmap( bottom8_jpg, 0, 
-            top1_jpg.GetHeight() + body_jpg.GetHeight());
-*/
-    if (rh_png.IsOk())
-        dc.DrawBitmap( rh_png, 300, 180 );
-
-    dc.SetTextForeground( wxT("WHITE") );
+    gc->SetFont(gf);
+    //dc.SetTextForeground( wxT("WHITE") );
     wxString now = wxNow ();
-    dc.DrawText (now, 100, 10);
-    dc.DrawText( wxString::Format("%2.1f C", t), 30, 130 );
+    gc->DrawText (now, 100, 10);
+    gc->DrawText( wxString::Format("%2.1f C", t), 30, 130 );
 
-    dc.DrawText( wxString::Format("%2.1f m/s", s), 365, 20 );
-    dc.DrawText( wxString::Format("%2.1f gusts", g), 365, 40 );
-    dc.DrawText( wxString::Format("%2.1f bearing", b), 365, 60 );
+    gc->DrawText( wxString::Format("%2.1f m/s", s), 365, 20 );
+    gc->DrawText( wxString::Format("%2.1f gusts", g), 365, 40 );
+    gc->DrawText( wxString::Format("%2.1f bearing", b), 365, 60 );
 
     dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
     dc.SetPen( *wxBLACK_PEN );
     dc.DrawCircle( 350, 100, 30);
-#if 0
-    if(m_frame)
+
+    if (gc)
     {
-        if(m_frame->m_connection)
-        {
-            wxString str;
-            str.Printf(wxT("%d"), m_frame->m_connection->data_count);
-            m_frame->SetStatusText(str, 1); 
-        }
+        // make a path that contains a circle and some lines
+        gc->SetPen( *wxRED_PEN );
+        wxGraphicsPath path = gc->CreatePath();
+        path.AddCircle( 50.0, 50.0, 50.0 );
+        path.MoveToPoint(0.0, 50.0);
+        path.AddLineToPoint(100.0, 50.0);
+        path.MoveToPoint(50.0, 0.0);
+        path.AddLineToPoint(50.0, 100.0 );
+        path.CloseSubpath();
+        //path.AddRectangle(25.0, 25.0, 50.0, 50.0);
+        path.AddRoundedRectangle(25.0, 25.0, 50.0, 50.0, 10.3);
+        gc->StrokePath(path);
+
+        //delete gc;
     }
 #endif
-    //dc.SetBrush( *wxWHITE_BRUSH );
-    //dc.SetPen( *wxRED_PEN );
-    //dc.DrawRectangle( 170, 50, 60, 60 );
+
+
 
 }
 

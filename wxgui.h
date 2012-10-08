@@ -12,6 +12,27 @@
 #include <wx/propdlg.h>
 #include <wx/generic/propdlg.h>
 
+
+/*
+defaults:
+    mapurls
+        mapurl http://www.openstreetmap.org/?lat=%f&lon=%f&zoom=15&layers=M
+        mapurl http://www.mytopo.com/maps/?lat=%f&lon=%f&z=15
+        mapurl http://www.mapquest.com/maps/map.adp?latlongtype=decimal&latitude=%f&longitude=%f
+    launchcmds
+        "internal"
+        "mozilla -remote openURL(%s, new-window)"
+        "netscape -remote openURL(%s, new-window)"
+        "kfmclient openURL %s"
+        "opera -newwindow %s"
+        "exo-open --launch WebBrowser %s"
+        "open /Applications/Safari.app %s"
+
+
+
+
+*/
+
 class MyFrame;
 
 //-----------------------------------------------------------------------------
