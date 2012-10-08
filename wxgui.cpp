@@ -47,16 +47,38 @@
 extern "C" {
 #endif
 #include "owwl.h"
+
+
+/* Call a function for each data entry */
+    /* The function should return non-zero to break out of the loop */
+
+int
+owwl_foreach_jmc(owwl_conn *conn, owwl_func func, void *user_data)
+{
+    int i ;
+
+    for (i=0; i<conn->data_count; ++i)
+    {
+        if (func(conn, &(conn->data[i]), user_data)) return -1 ;
+    }
+
+    return 0 ; /* Ok */
+}
+
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif
 
 wxString g_VersionStr = VERSIONSTR;
+owwl_conn *g_connection;
 
 
 #ifndef wxHAS_IMAGES_IN_RESOURCES
     #include "pixmaps/oww_xpm.xpm"
 #endif
+
+
+
 
 // ============================================================================
 // declarations
@@ -90,43 +112,11 @@ public:
 private:
     wxGrid *m_grid;
     wxStatusBar * m_statusBar;
+
     //int unit_choices[OWWL_UNIT_CLASS_LIMIT];
-#if AUX_PRINT_DATA
-    static int aux_print_data(owwl_conn *conn, owwl_data *data, void *user_data)
-    {
-        char linebuf[128], namebuff[128];
-        int length;
-        if(NULL != conn)
-        {
-            if(NULL != data)
-            {
-                if (NULL != data->str)
-                {
-                    int arg = 0 ;
-                    int cntr = 0;
 
-                    while (arg >= 0)
-                    {
-                        int unit_class, unit = OwwlUnit_Metric ;
+    int FillCells(void);
 
-                        unit_class = owwl_unit_class(data, arg) ;
-
-                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
-                            unit = OwwlUnit_Metric; //unit_choices[unit_class] ;
-
-                        m_grid->AppendRows();
-                        m_grid->SetCellValue(owwl_name(data, namebuff, 128, &length, 0), cntr, 0);
-                        m_grid->SetCellValue(data->str(data, linebuf, 128, unit, -1, arg), cntr, 1);
-                        m_grid->SetCellValue(owwl_unit_name(data, unit, arg), cntr, 2);
-                        cntr++;
-                        arg = owwl_next_arg(data, arg) ;
-                    }
-                }else m_statusBar->SetStatusText("data->str NULL", 1);
-            }else m_statusBar->SetStatusText("conn-data NULL", 1);
-        }else m_statusBar->SetStatusText("g_connect NULL", 1);
-        return 0;
-    }
-#endif
     bool Create(wxFrame *parent, const wxString& desc)
     {
         if (!wxFrame::Create(parent, wxID_ANY, desc, wxDefaultPosition, wxDefaultSize,
@@ -148,11 +138,13 @@ private:
         m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
-        m_grid->CreateGrid(0, 3);
+        m_grid->CreateGrid(0, 4);
         m_grid->SetLabelValue(wxHORIZONTAL, "  Name  ", 0);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Value ", 1);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Unit  ", 2);
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Data  ", 1);
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Value ", 2);
+        m_grid->SetLabelValue(wxHORIZONTAL, "  Unit  ", 3);
 
+        FillCells();
         //owwl_foreach(m_connection, aux_print_data, NULL/*client*/);
 
         m_grid->SetRowLabelSize(wxGRID_AUTOSIZE);
@@ -173,41 +165,10 @@ private:
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
         wxPaintDC dc(this);
-        owwl_conn *conn = NULL;
-        owwl_data *data = NULL;
         const wxSize size = GetClientSize();
-        char linebuf[128], namebuff[128];
-        int length;
-SetStatusText("got to onpaint", 1);
-        if(NULL != conn)
-        {
-            if(NULL != conn->data)
-            {
-                data = conn->data;
-                if (data->str)
-                {
-                    int arg = 0 ;
-                    int cntr = 0;
 
-                    while (arg >= 0)
-                    {
-                        int unit_class, unit = OwwlUnit_Metric ;
+        FillCells();
 
-                        unit_class = owwl_unit_class(data, arg) ;
-
-                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
-                            unit = OwwlUnit_Metric; //unit_choices[unit_class] ;
-
-                        m_grid->AppendRows();
-                        m_grid->SetCellValue(owwl_name(data, namebuff, 128, &length, 0), cntr, 0);
-                        m_grid->SetCellValue(data->str(data, linebuf, 128, unit, -1, arg), cntr, 1);
-                        m_grid->SetCellValue(owwl_unit_name(data, unit, arg), cntr, 2);
-                        cntr++;
-                        arg = owwl_next_arg(data, arg) ;
-                    }
-                }else SetStatusText("data->str NULL", 1);
-            }else SetStatusText("conn-data NULL", 1);
-        }else SetStatusText("g_connect NULL", 1);
         m_grid->AutoSize();
     }
 
@@ -224,7 +185,50 @@ SetStatusText("got to onpaint", 1);
     DECLARE_EVENT_TABLE()
 };
 
+int MyAuxilliaryFrame::FillCells(void)
+{
+    owwl_conn *conn = g_connection;
+    owwl_data *data = NULL;
+    if(NULL != conn)
+    {
+        if(NULL != conn->data)
+        {
+            data = conn->data;
+            if (data->str)
+            {
+                int cntr = 0;
+                int i;
+                for (i=0; i<conn->data_count; ++i)
+                {
+                    char linebuf[128], namebuff[128];
+                    int length;
+                    int arg = 0;
+                    //if (func(conn, &(conn->data[i]), user_data)) return -1 ;
+                    while (arg >= 0)
+                    {
+                        int unit_class, unit = OwwlUnit_Metric ;
+                        linebuf[0] = '\0';
+                        namebuff[0] = '\0';
+                        unit_class = owwl_unit_class(data, arg) ;
 
+                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
+                            unit = OwwlUnit_Imperial; //Metric; //unit_choices[unit_class] ;
+
+                        m_grid->AppendRows();
+                        m_grid->SetCellValue(owwl_name(&(data[i]), namebuff, 128, &length, 0), cntr, 0);
+                        m_grid->SetCellValue((data[i]).str(&(data[i]), linebuf, 128, unit, -1, arg), cntr, 2);
+                        m_grid->SetCellValue(owwl_arg_stem((owwl_device_type_enum)data[i].device_type, 
+                                            data[i].device_subtype, arg), cntr, 1);
+                        m_grid->SetCellValue(owwl_unit_name(&(data[i]), unit, arg), cntr, 3);
+                        cntr++;
+                        arg = owwl_next_arg(&(data[i]), arg) ;
+                    }
+                }
+            }else SetStatusText("data->str NULL", 1);
+        }else SetStatusText("conn-data NULL", 1);
+    }else SetStatusText("conn NULL", 1);
+    return 0;
+}
 
 // ----------------------------------------------------------------------------
 // MyFrame
@@ -235,7 +239,6 @@ class MyFrame: public wxFrame
     OwwlReaderTimer *m_readerTimer;
     RenderTimer *m_renderTimer;
     wxConfigBase *m_config;
-    MyAuxilliaryFrame *m_auxilliaryFrame;
 
 public:
     MyFrame();
@@ -249,6 +252,7 @@ public:
     void OnQuit( wxCommandEvent &event );
 
     MyCanvas         *m_canvas;
+    MyAuxilliaryFrame *m_auxilliaryFrame;
     wxStatusBar      *m_statusbar;
     
     wxString          m_hostname;
@@ -440,7 +444,7 @@ MyFrame::MyFrame()
             m_s = socket(address->sa_family, SOCK_STREAM, 0);
             if(m_s != -1)
             {
-                m_connection = owwl_new_conn(m_s, NULL);
+                g_connection = m_connection = owwl_new_conn(m_s, NULL);
                 if (connect(m_s, address, addr_len) == 0)
                 {
                     int retval = owwl_read(m_connection);
@@ -487,7 +491,7 @@ MyFrame::MyFrame()
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
     owwl_free(m_connection);
-    m_connection = NULL;
+    g_connection = m_connection = NULL;
     close(m_s);
     m_renderTimer->Stop();
     delete m_renderTimer;
@@ -719,27 +723,13 @@ RenderTimer::RenderTimer(MyFrame* f) : wxTimer()
 
 void RenderTimer::Notify()
 {
-#if 0
-    int retval = owwl_read(m_frame->m_connection);
-    switch(retval)
+    if(NULL != m_frame->m_auxilliaryFrame)
     {
-        case Owwl_Read_Error:
-            m_frame->SetStatusText("Protocol error");
-            break;
-        case Owwl_Read_Disconnect:
-            m_frame->SetStatusText("Server disconnect");
-            break;
-        case Owwl_Read_Again:
-            m_frame->SetStatusText("Read again");
-            break;
-        case Owwl_Read_Read_And_Decoded:
-            m_frame->SetStatusText("Read & Decoded");
-            break;
-        default:
-            m_frame->SetStatusText("Read default");
-            break;
+        m_frame->m_auxilliaryFrame->Refresh();
+        m_frame->m_auxilliaryFrame->Update();
+        m_frame->SetStatusText("auxFrame != NULL", 1);
     }
-#endif
+    else m_frame->SetStatusText("auxFrame == NULL", 1);
     m_frame->m_canvas->Refresh();
 }
 
