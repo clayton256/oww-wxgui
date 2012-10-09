@@ -25,6 +25,7 @@
 
 #include <wx/image.h>
 #include <wx/file.h>
+#include <wx/filefn.h>
 #include <wx/filename.h>
 #include <wx/mstream.h>
 #include <wx/wfstream.h>
@@ -109,13 +110,14 @@ public:
     {
         Create(parent, desc); 
     }
+    wxGrid *m_grid;
 
 private:
-    wxGrid *m_grid;
     wxStatusBar * m_statusBar;
     enum gridColumns {gridColName, gridColData, gridColValue, gridColUnit};
-
-    int FillCells(void);
+    int InitPopulateCells(void);
+    int UpdateCellsUnits(void);
+    int PopulateCellVals(void);
 
     bool Create(wxFrame *parent, const wxString& desc)
     {
@@ -125,6 +127,7 @@ private:
         {
             return false;
         }
+        SetIcon(wxICON(oww));
         m_grid = (wxGrid*)NULL;
 #if 0
         wxMenu *menu = new wxMenu;
@@ -132,19 +135,22 @@ private:
         wxMenuBar *mbar = new wxMenuBar;
         mbar->Append(menu, wxT("Something here?"));
         SetMenuBar(mbar);
-
+#endif
+#if 1
         m_statusBar = CreateStatusBar(2);
-        UpdateStatusBar();
 #endif
         m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
+        m_grid->EnableDragColSize(false);
         m_grid->CreateGrid(0, 4);
         m_grid->SetLabelValue(wxHORIZONTAL, "  Name  ", gridColName);
         m_grid->SetLabelValue(wxHORIZONTAL, "  Data  ", gridColData);
         m_grid->SetLabelValue(wxHORIZONTAL, "  Value ", gridColValue);
         m_grid->SetLabelValue(wxHORIZONTAL, "  Unit  ", gridColUnit);
-        FillCells();
+        InitPopulateCells();
+        UpdateCellsUnits();
+        //PopulateCellVals();
         m_grid->SetRowLabelSize(wxGRID_AUTOSIZE);
         m_grid->SetColLabelSize(wxGRID_AUTOSIZE);
         m_grid->AutoSize();
@@ -162,11 +168,8 @@ private:
 #endif
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
-        wxPaintDC dc(this);
-
-        FillCells();
-
-        m_grid->AutoSize();
+        PopulateCellVals();
+        //m_grid->AutoSize();
     }
 #if 0
     void OnSave(wxCommandEvent& WXUNUSED(event))
@@ -184,7 +187,7 @@ private:
 
 
 
-int MyAuxilliaryFrame::FillCells(void)
+int MyAuxilliaryFrame::InitPopulateCells()
 {
     owwl_conn *conn = g_connection;
     owwl_data *data = NULL;
@@ -216,11 +219,91 @@ int MyAuxilliaryFrame::FillCells(void)
                         m_grid->AppendRows();
                         m_grid->SetCellValue(owwl_name(&(data[i]), namebuff, 
                                                 128, &length, 0), cntr, 0);
+                        m_grid->SetCellValue(owwl_arg_stem(
+                                        (owwl_device_type_enum) data[i].device_type, 
+                                        data[i].device_subtype, arg),
+                                cntr, 1);
+                        cntr++;
+                        arg = owwl_next_arg(&(data[i]), arg) ;
+                    }
+                }
+            }else SetStatusText("data->str NULL", 1);
+        }else SetStatusText("conn-data NULL", 1);
+    }else SetStatusText("conn NULL", 1);
+    return 0;
+}
+
+
+int MyAuxilliaryFrame::UpdateCellsUnits()
+{
+    owwl_conn *conn = g_connection;
+    owwl_data *data = NULL;
+    if(NULL != conn)
+    {
+        if(NULL != conn->data)
+        {
+            data = conn->data;
+            if (data->str)
+            {
+                int cntr = 0;
+                int i;
+                for (i=0; i<conn->data_count; ++i)
+                {
+                    char linebuf[128], namebuff[128];
+                    int length;
+                    int arg = 0;
+
+                    while (arg >= 0)
+                    {
+                        int unit_class, unit = OwwlUnit_Metric ;
+                        linebuf[0] = '\0';
+                        namebuff[0] = '\0';
+                        unit_class = owwl_unit_class(data, arg) ;
+
+                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT))
+                            unit = unit_choices[unit_class];
+
+                        m_grid->SetCellValue(owwl_unit_name(&(data[i]), unit, arg),
+                                            cntr, 3);
+                        cntr++;
+                        arg = owwl_next_arg(&(data[i]), arg) ;
+                    }
+                }
+            }else SetStatusText("data->str NULL", 1);
+        }else SetStatusText("conn-data NULL", 1);
+    }else SetStatusText("conn NULL", 1);
+    return 0;
+}
+
+int MyAuxilliaryFrame::PopulateCellVals(void)
+{
+    owwl_conn *conn = g_connection;
+    owwl_data *data = NULL;
+    if(NULL != conn)
+    {
+        if(NULL != conn->data)
+        {
+            data = conn->data;
+            if (data->str)
+            {
+                char linebuf[128];
+                int cntr = 0;
+                int i;
+                for (i=0; i<conn->data_count; ++i)
+                {
+                    int arg = 0;
+
+                    while (arg >= 0)
+                    {
+                        linebuf[0] = '\0';
+                        int unit_class, unit = OwwlUnit_Metric ;
+                        unit_class = owwl_unit_class(data, arg) ;
+
+                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
+                            unit = unit_choices[unit_class] ;
+
                         m_grid->SetCellValue((data[i]).str(&(data[i]), linebuf, 
                                                 128, unit, -1, arg), cntr, 2);
-                        m_grid->SetCellValue(owwl_arg_stem((owwl_device_type_enum)data[i].device_type, 
-                                            data[i].device_subtype, arg), cntr, 1);
-                        m_grid->SetCellValue(owwl_unit_name(&(data[i]), unit, arg), cntr, 3);
                         cntr++;
                         arg = owwl_next_arg(&(data[i]), arg) ;
                     }
@@ -480,11 +563,10 @@ MyFrame::MyFrame()
     Refresh();
 
     SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
-
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(474,441) );
+    Show();
 
     m_renderTimer = new RenderTimer(this);
-    Show();
     m_renderTimer->start();
 
     m_readerTimer = new OwwlReaderTimer(this);
@@ -784,11 +866,13 @@ void RenderTimer::Notify()
 {
     if(NULL != m_frame->m_auxilliaryFrame)
     {
-        m_frame->m_auxilliaryFrame->Refresh();
+        m_frame->m_auxilliaryFrame->m_grid->ForceRefresh();
+        m_frame->m_auxilliaryFrame->Update();
         //m_frame->SetStatusText("auxFrame != NULL", 1);
     }
-    else //m_frame->SetStatusText("auxFrame == NULL", 1);
+    //else m_frame->SetStatusText("auxFrame == NULL", 1);
     m_frame->m_canvas->Refresh();
+    m_frame->m_canvas->Update();
 }
 
 void RenderTimer::start()
@@ -826,7 +910,7 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
     dc.SelectObject( wxNullBitmap );
 */
     // try to find the directory with our images
-    wxString dir = "./pixmaps/";
+    wxString dir = /* wxGetCwd() + "/Projects/oww-wxgui*/ "./pixmaps/";
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
       && wxFile::Exists( dir + wxT("top2.jpg")) 
@@ -844,7 +928,15 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
         // found image files
     }
     else
+    {
+        wxArrayString array;
+        array.Add("Can't find Image files in:");
+        array.Add(dir);
+        (void)wxMessageBox( wxJoin(array, '\n'),
+                        "One wire Weather",
+                        wxICON_INFORMATION | wxOK );
         wxLogWarning(wxT("Can't find image files!"));
+    }
 
     if ( !image.LoadFile( dir + wxString(_T("body.jpg"))) )
         wxLogError(_T("Can't load JPG image"));
@@ -928,7 +1020,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     PrepareDC( dc );
     owwl_data *od = NULL;
     int unit;
-    int arg = 0;
 
     wxFont f = wxFont(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
                                                         wxFONTWEIGHT_NORMAL);
@@ -946,121 +1037,126 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             dc.SetTextForeground( wxT("WHITE") );
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
-            int unit_class = owwl_unit_class(od, arg);
-            if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT))
-            {
-                unit = unit_choices[unit_class];
-            }
-
             if(NULL != od)
             {
-               speed = 55.5; //od->val(od, unit, 0); //od->device_data.wind.speed;
-               gust = 99.9; //od->val(od, unit, 1); //od->device_data.wind.gust;
-               bearing = 180.0; //od->val(od, unit, 2); //od->device_data.wind.bearing;
-            }
-            
-            int inc_top = 0;
-        #if 0
-            if(speed > 0.0 && speed < 1.0)
-            {
-            }
-            else
-            {
-                if(speed )
+                int unit_class = owwl_unit_class(od, 0);
+                if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT))
                 {
+                    unit = unit_choices[unit_class];
                 }
-            }
+#if WXOWW_SIMULATION
+                speed = 55.5;
+                gust = 99.9;
+                bearing = 180.0;
 #else
-            inc_top = 1;
+                speed = /*od->val(od, unit, 0); */od->device_data.wind.speed;
+                gust = /*od->val(od, unit, 1); */od->device_data.wind.gust;
+                bearing = /*od->val(od, unit, 2); */od->device_data.wind.bearing;
 #endif
-            if(inc_top)
-            {
-                switch (counter % 3)
+                
+                
+                int inc_top = 0;
+#if 0
+                if(speed > 0.0 && speed < 1.0)
                 {
-                    case 0:
-                    if (top1_jpg.IsOk())
-                        {
-                        dc.DrawBitmap( top1_jpg, 0, 0 );
-                        }
-                        counter++;
-                        break;
-
-                    case 1:
-                        if (top2_jpg.IsOk())
-                        {
-                        dc.DrawBitmap( top2_jpg, 0, 0 );
-                        }
-                        counter++;
-                        break;
-                    case 2:
-                        if (top3_jpg.IsOk())
-                        {
-                        dc.DrawBitmap( top3_jpg, 0, 0 );
-                        }
-                        counter = 0;
                 }
-            }
-            if (body_jpg.IsOk())
-                dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight());
+                else
+                {
+                    if(speed )
+                    {
+                    }
+                }
+#else
+                inc_top = 1;
+#endif
+                if(inc_top)
+                {
+                    switch (counter % 3)
+                    {
+                        case 0:
+                        if (top1_jpg.IsOk())
+                            {
+                            dc.DrawBitmap( top1_jpg, 0, 0 );
+                            }
+                            counter++;
+                            break;
 
-            switch( lround(bearing/22.5) )
-            {
-                case 1:
-                case 2:
-                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
-                                                    + body_jpg.GetHeight());
-                    break;
-                case 3:
-                case 4:
-                    dc.DrawBitmap( bottom2_jpg, 0, top1_jpg.GetHeight()
-                                                    + body_jpg.GetHeight());
-                    break;
-                case 5:
-                case 6:
-                    dc.DrawBitmap( bottom3_jpg, 0, top1_jpg.GetHeight() 
-                                                    + body_jpg.GetHeight());
-                    break;
-                case 7:
-                case 8:
-                    dc.DrawBitmap( bottom4_jpg, 0, top1_jpg.GetHeight() 
-                                                    + body_jpg.GetHeight());
-                    break;
-                case 9:
-                case 10:
-                    dc.DrawBitmap( bottom5_jpg, 0, top1_jpg.GetHeight() 
-                                                    + body_jpg.GetHeight());
-                    break;
-                case 11:
-                case 12:
-                    dc.DrawBitmap( bottom6_jpg, 0, top1_jpg.GetHeight() 
-                                                    + body_jpg.GetHeight());
-                    break;
-                case 13:
-                case 14:
-                    dc.DrawBitmap( bottom7_jpg, 0, top1_jpg.GetHeight() 
-                                                    + body_jpg.GetHeight());
-                    break;
-                case 15:
-                case 16:
-                    dc.DrawBitmap( bottom8_jpg, 0, top1_jpg.GetHeight() 
-                                                    + body_jpg.GetHeight());
-                    break;
-                default:
-                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
-                                                    + body_jpg.GetHeight());
-            }
-            if(NULL != od)
-            {
+                        case 1:
+                            if (top2_jpg.IsOk())
+                            {
+                            dc.DrawBitmap( top2_jpg, 0, 0 );
+                            }
+                            counter++;
+                            break;
+                        case 2:
+                            if (top3_jpg.IsOk())
+                            {
+                            dc.DrawBitmap( top3_jpg, 0, 0 );
+                            }
+                            counter = 0;
+                    }
+                }
+                
+                if (body_jpg.IsOk())
+                    dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight());
+
+                switch( lround(bearing/22.5) )
+                {
+                    case 1:
+                    case 2:
+                        dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                        break;
+                    case 3:
+                    case 4:
+                        dc.DrawBitmap( bottom2_jpg, 0, top1_jpg.GetHeight()
+                                                        + body_jpg.GetHeight());
+                        break;
+                    case 5:
+                    case 6:
+                        dc.DrawBitmap( bottom3_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                        break;
+                    case 7:
+                    case 8:
+                        dc.DrawBitmap( bottom4_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                        break;
+                    case 9:
+                    case 10:
+                        dc.DrawBitmap( bottom5_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                        break;
+                    case 11:
+                    case 12:
+                        dc.DrawBitmap( bottom6_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                        break;
+                    case 13:
+                    case 14:
+                        dc.DrawBitmap( bottom7_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                        break;
+                    case 15:
+                    case 16:
+                        dc.DrawBitmap( bottom8_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                        break;
+                    default:
+                        dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                }
+
                 dc.DrawText( wxString::Format("%s %s",
-                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        od->str(od, linebuf, 128, unit, -1, 0),
                                         //od->device_data.wind.speed,
                                         owwl_unit_name(od, unit, 0)), 365, 20);
                 dc.DrawText( wxString::Format("%s %s",
-                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        od->str(od, linebuf, 128, unit, -1, 1),
                                         //od->device_data.wind.gust,
                                         owwl_unit_name(od, unit, 1)), 365, 40);
                 dc.DrawText( wxString::Format("%s %s", 
-                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        od->str(od, linebuf, 128, unit, -1, 2),
                                         //od->device_data.wind.bearing,
                                         owwl_unit_name(od, unit, 2)), 365, 60);
             }
@@ -1072,8 +1168,8 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 {
                     dc.DrawBitmap( rh_png, 300, 180 );
                 }
-                dc.DrawText( wxString::Format("%s %s", 
-                                        od->str(od, linebuf, 128, unit, -1, arg),
+                dc.DrawText( wxString::Format("%s%s", 
+                                        od->str(od, linebuf, 128, unit, -1, 0),
                                         //od->device_data.humidity.RH,
                                         owwl_unit_name(od, unit, 0)), 365, 180);
             }
@@ -1082,8 +1178,8 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                                     OwwlTemp_Thermometer, 0);
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("%s %s", 
-                                    od->str(od, linebuf, 128, unit, -1, arg),
+                dc.DrawText( wxString::Format("%s%s", 
+                                    od->str(od, linebuf, 128, unit, -1, 0),
                                     //od->device_data.temperature.T,
                                     owwl_unit_name(od, unit, 0)), 25, 125);
             }
@@ -1100,9 +1196,27 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             if(NULL != od)
             {
                 dc.DrawText( wxString::Format("BP: %s %s", 
-                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        od->str(od, linebuf, 128, unit, -1, 0),
                                         //od->device_data.barom.bp,
                                         owwl_unit_name(od, unit, 0)), 280, 300);
+            }
+
+            od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Humidity, 0);
+            if(NULL != od)
+            {
+                dc.DrawText( wxString::Format("Trh: %s %s", 
+                            od->str(od, linebuf, 128, unit, -1, 0),
+                            //od->device_data.temperature.T,
+                            owwl_unit_name(od, unit, 0)), 280, 260);
+            }
+
+            od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Barometer, 0);
+            if(NULL != od)
+            {
+                dc.DrawText( wxString::Format("Tb: %s %s", 
+                            od->str(od, linebuf, 128, unit, -1, 0),
+                            //od->device_data.barom.bp,
+                            owwl_unit_name(od, unit, 0)), 280, 280);
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Rain, 0, 0);
@@ -1111,14 +1225,14 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 wxDateTime rain_time = wxDateTime(
                                         od->device_data.rain.rain_reset_time);
                 dc.DrawText( wxString::Format("Rain: %s %s since %s", 
-                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        od->str(od, linebuf, 128, unit, -1, 0),
                                         //od->device_data.rain.rain_since_reset,
                                         owwl_unit_name(od, unit, 0),
                                         rain_time.FormatTime()),
                             180, 340);
                                     //od->device_data.rain.rain_count,
                 dc.DrawText( wxString::Format("(%s %s)", 
-                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        od->str(od, linebuf, 128, unit, -1, 2),
                                         //od->device_data.rain.rain_rate,
                                         owwl_unit_name(od, unit, 2)),
                             220, 360);
