@@ -75,74 +75,25 @@ private:
 
 class OwwlReaderTimer : public wxTimer
 {
-    MyFrame * m_frame;
-    
 public:
     OwwlReaderTimer(MyFrame * canvas);
     void Notify();
     void start();
+
+private:
+    MyFrame * m_frame;
+
 };
 
 class RenderTimer : public wxTimer
 {
-    MyFrame * m_frame;
-    
 public:
     RenderTimer(MyFrame * canvas);
     void Notify();
     void start();
-};
-
-
-
-class SettingsDialog: public wxPropertySheetDialog
-{
-DECLARE_CLASS(SettingsDialog)
-public:
-    SettingsDialog(wxWindow* parent, int dialogType);
-    ~SettingsDialog();
-
-#if 0
-    wxPanel* CreateGeneralSettingsPage(wxWindow* parent);
-    wxPanel* CreateAestheticSettingsPage(wxWindow* parent);
-#endif
-
-protected:
-    enum {
-        ID_SHOW_TOOLTIPS = 100,
-        ID_AUTO_SAVE,
-        ID_AUTO_SAVE_MINS,
-        ID_LOAD_LAST_PROJECT,
-
-        ID_APPLY_SETTINGS_TO,
-        ID_BACKGROUND_STYLE,
-        ID_FONT_SIZE
-    };
-
-//    wxImageList*    m_imageList;
-
-DECLARE_EVENT_TABLE()
-};
-
-
-class MySetupDialog: public wxDialog
-{
-public:
- 
-    MySetupDialog ( wxWindow * , wxWindowID , wxString const & , 
-                        wxPoint const & , wxSize const & , long );
-
-    wxTextCtrl * dialogText;
-    wxString GetText();
- 
 private:
-    wxButton *m_btnOk,
-             *m_btnCancel,
-             *m_btnDelete;
- 
-    void OnButton( wxCommandEvent & event );
- 
-    DECLARE_EVENT_TABLE()
+    MyFrame * m_frame;
+
 };
 
 

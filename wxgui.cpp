@@ -51,7 +51,6 @@ extern "C" {
 
 /* Call a function for each data entry */
     /* The function should return non-zero to break out of the loop */
-
 int
 owwl_foreach_jmc(owwl_conn *conn, owwl_func func, void *user_data)
 {
@@ -95,6 +94,8 @@ public:
 };
 
 
+wxString default_unit_names[] = {"<Metric>", "<Imperial>", "<Alt1>", "<Alt2>"};
+int unit_choices[OWWL_UNIT_CLASS_LIMIT];
 
 //-----------------------------------------------------------------------------
 // MyAuxilliaryFrame
@@ -114,14 +115,13 @@ private:
     wxStatusBar * m_statusBar;
     enum gridColumns {gridColName, gridColData, gridColValue, gridColUnit};
 
-    //int unit_choices[OWWL_UNIT_CLASS_LIMIT];
-
     int FillCells(void);
 
     bool Create(wxFrame *parent, const wxString& desc)
     {
-        if (!wxFrame::Create(parent, wxID_ANY, desc, wxDefaultPosition, wxDefaultSize,
-                              wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)))
+        if (!wxFrame::Create(parent, wxID_ANY, desc, 
+                    wxDefaultPosition, wxDefaultSize,
+                    wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)))
         {
             return false;
         }
@@ -183,8 +183,6 @@ private:
 };
 
 
-//enum MyAuxilliaryFrame::gridColumns : int {gridColName, gridColData, gridColValue, gridColUnit};
-
 
 int MyAuxilliaryFrame::FillCells(void)
 {
@@ -204,7 +202,7 @@ int MyAuxilliaryFrame::FillCells(void)
                     char linebuf[128], namebuff[128];
                     int length;
                     int arg = 0;
-                    //if (func(conn, &(conn->data[i]), user_data)) return -1 ;
+
                     while (arg >= 0)
                     {
                         int unit_class, unit = OwwlUnit_Metric ;
@@ -213,11 +211,13 @@ int MyAuxilliaryFrame::FillCells(void)
                         unit_class = owwl_unit_class(data, arg) ;
 
                         if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
-                            unit = OwwlUnit_Imperial; //Metric; //unit_choices[unit_class] ;
+                            unit = unit_choices[unit_class] ;
 
                         m_grid->AppendRows();
-                        m_grid->SetCellValue(owwl_name(&(data[i]), namebuff, 128, &length, 0), cntr, 0);
-                        m_grid->SetCellValue((data[i]).str(&(data[i]), linebuf, 128, unit, -1, arg), cntr, 2);
+                        m_grid->SetCellValue(owwl_name(&(data[i]), namebuff, 
+                                                128, &length, 0), cntr, 0);
+                        m_grid->SetCellValue((data[i]).str(&(data[i]), linebuf, 
+                                                128, unit, -1, arg), cntr, 2);
                         m_grid->SetCellValue(owwl_arg_stem((owwl_device_type_enum)data[i].device_type, 
                                             data[i].device_subtype, arg), cntr, 1);
                         m_grid->SetCellValue(owwl_unit_name(&(data[i]), unit, arg), cntr, 3);
@@ -231,10 +231,65 @@ int MyAuxilliaryFrame::FillCells(void)
     return 0;
 }
 
+
+// ----------------------------------------------------------------------------
+// MySettingsDialogy
+// ----------------------------------------------------------------------------
+class MySettingsDialog: public wxPropertySheetDialog
+{
+DECLARE_CLASS(MySettingsDialog)
+public:
+    MySettingsDialog(wxWindow* parent, int dialogType);
+    ~MySettingsDialog();
+
+#if 0
+    wxPanel* CreateGeneralSettingsPage(wxWindow* parent);
+    wxPanel* CreateAestheticSettingsPage(wxWindow* parent);
+#endif
+
+protected:
+    enum {
+        ID_SHOW_TOOLTIPS = 100,
+        ID_AUTO_SAVE,
+        ID_AUTO_SAVE_MINS,
+        ID_LOAD_LAST_PROJECT,
+
+        ID_APPLY_SETTINGS_TO,
+        ID_BACKGROUND_STYLE,
+        ID_FONT_SIZE
+    };
+
+DECLARE_EVENT_TABLE()
+};
+
+// ----------------------------------------------------------------------------
+// MySetupDialogy
+// ----------------------------------------------------------------------------
+
+class MySetupDialog: public wxDialog
+{
+public:
+ 
+    MySetupDialog ( wxWindow * , wxWindowID , wxString const & , 
+                        wxPoint const & , wxSize const & , long );
+
+    wxTextCtrl * dialogText;
+    wxString GetText();
+ 
+private:
+    wxButton *m_btnOk,
+             *m_btnCancel,
+             *m_btnDelete;
+ 
+    void OnButton( wxCommandEvent & event );
+ 
+    DECLARE_EVENT_TABLE()
+};
+
+
 // ----------------------------------------------------------------------------
 // MyFrame
 // ----------------------------------------------------------------------------
-
 class MyFrame: public wxFrame
 {
     OwwlReaderTimer *m_readerTimer;
@@ -252,14 +307,13 @@ public:
     void OnDevices( wxCommandEvent &event );
     void OnQuit( wxCommandEvent &event );
 
-    MyCanvas         *m_canvas;
+    MyCanvas          *m_canvas;
     MyAuxilliaryFrame *m_auxilliaryFrame;
-    wxStatusBar      *m_statusbar;
-    
-    wxString          m_hostname;
-    int               m_port;
-    SOCKET            m_s;
-    owwl_conn        *m_connection;
+    wxStatusBar       *m_statusbar;
+    wxString           m_hostname;
+    int                m_port;
+    SOCKET             m_s;
+    owwl_conn         *m_connection;
 
 private:
     wxLongLong owwl_version_num(void)
@@ -326,7 +380,7 @@ print_data(owwl_conn *conn, owwl_data *data, void *user_data)
         unit_class = owwl_unit_class(data, arg) ;
 
         if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
-            unit = 1; //unit_choices[unit_class] ;
+            unit = unit_choices[unit_class] ;
 #if 0
         printf("In print_data %s %s %s %s\n", owwl_name(data, namebuff, 128, &length, 0),
         owwl_arg_stem((owwl_device_type_enum)data->device_type, data->device_subtype, arg),
@@ -372,7 +426,7 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 END_EVENT_TABLE()
 
 MyFrame::MyFrame()
-    : wxFrame( (wxFrame *)NULL, wxID_ANY, wxT("Oww"),
+    : wxFrame( (wxFrame *)NULL, wxID_ANY, wxT("Oww"), 
                 wxPoint(20, 20), 
 #ifdef __WXGTK__
                 wxSize(474, 441+40),
@@ -390,7 +444,14 @@ MyFrame::MyFrame()
     m_port = 8899;
     m_s = -1;
     m_auxilliaryFrame = NULL;
-
+    {
+        int i;
+        for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
+        {
+            unit_choices[i] = OwwlUnit_Imperial;
+            //unit_choices[i] = OwwlUnit_Metric;
+        }
+    }
     SetIcon(wxICON(oww));
 
     m_config = wxConfigBase::Get();
@@ -399,19 +460,19 @@ MyFrame::MyFrame()
 
     wxMenuBar *menu_bar = new wxMenuBar();
     wxMenu *menuImage = new wxMenu;
-    menuImage->Append( ID_AUXILLIARY, wxT("Auxilary"), "See other device values");
-    menuImage->Append( ID_MESSAGES, wxT("Messages"), "See running log");
-    menuImage->Append( ID_MAP, wxT("Map"), "Map this station");
+    menuImage->Append(ID_AUXILLIARY, wxT("Auxilary"), "See other device values");
+    menuImage->Append(ID_MESSAGES, wxT("Messages"), "See running log");
+    menuImage->Append(ID_MAP, wxT("Map"), "Map this station");
     menuImage->AppendSeparator();
-    menuImage->Append( ID_SETUP, wxT("Setup"), "Preferences");
+    menuImage->Append(ID_SETUP, wxT("Setup"), "Preferences");
     menuImage->Append(ID_DEVICES, "Devices", "Configure devices");
     menuImage->AppendSeparator();
-    menuImage->Append( ID_ABOUT, wxT("&About"));
-    menuImage->Append( ID_ABOUT, wxT("&Help"));
+    menuImage->Append(ID_ABOUT, wxT("&About"));
+    menuImage->Append(ID_ABOUT, wxT("&Help"));
     menuImage->AppendSeparator();
-    menuImage->Append( ID_QUIT, wxT("E&xit\tCtrl-Q"));
+    menuImage->Append(ID_QUIT, wxT("E&xit\tCtrl-Q"));
     menu_bar->Append(menuImage, wxT("Menu"));
-    SetMenuBar( menu_bar );
+    SetMenuBar(menu_bar);
 
     m_statusbar = CreateStatusBar(2);
     int widths[] = { -1, 200 };
@@ -606,9 +667,9 @@ MySetupDialog::MySetupDialog ( wxWindow * parent, wxWindowID id,
     dialogText = new wxTextCtrl(this, -1, dimensions, p, sz, wxTE_MULTILINE);
  
     p.y += sz.GetHeight() + 10;
-    wxButton * b = new wxButton(this, wxID_OK, _("OK"), p, wxDefaultSize);
+    wxButton *b = new wxButton(this, wxID_OK, _("OK"), p, wxDefaultSize);
     p.x += 110;
-    wxButton * c = new wxButton(this, wxID_CANCEL, _("Cancel"), p, wxDefaultSize);
+    wxButton *c = new wxButton(this, wxID_CANCEL, _("Cancel"), p, wxDefaultSize);
 
     SetEscapeId(wxID_CANCEL);
 
@@ -631,11 +692,9 @@ void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
     wxString url;
     m_config->Read("mapcmd", &url);
-//    (void)wxMessageBox( url, "Oww", wxICON_INFORMATION|wxOK);
 
     char command[2048];
     sprintf(command, url, m_connection->latitude, m_connection->longitude);
-//    (void)wxMessageBox( wxString(command), "Oww", wxICON_INFORMATION|wxOK);
 
     wxArrayString output;
     wxExecute(wxString(command), output);
@@ -868,8 +927,11 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     wxPaintDC dc( this );
     PrepareDC( dc );
     owwl_data *od = NULL;
+    int unit;
+    int arg = 0;
 
-    wxFont f = wxFont(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+    wxFont f = wxFont(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
+                                                        wxFONTWEIGHT_NORMAL);
     dc.SetFont(f);
 
     if(m_frame)
@@ -883,6 +945,12 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             dc.SetTextForeground( wxT("WHITE") );
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
+            int unit_class = owwl_unit_class(od, arg);
+            if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT))
+            {
+                unit = unit_choices[unit_class];
+            }
+
             if(NULL != od)
             {
                speed = od->device_data.wind.speed;
@@ -921,44 +989,59 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             {
                 case 1:
                 case 2:
-                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
+                                                    + body_jpg.GetHeight());
                     break;
                 case 3:
                 case 4:
-                    dc.DrawBitmap( bottom2_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    dc.DrawBitmap( bottom2_jpg, 0, top1_jpg.GetHeight()
+                                                    + body_jpg.GetHeight());
                     break;
                 case 5:
                 case 6:
-                    dc.DrawBitmap( bottom3_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    dc.DrawBitmap( bottom3_jpg, 0, top1_jpg.GetHeight() 
+                                                    + body_jpg.GetHeight());
                     break;
                 case 7:
                 case 8:
-                    dc.DrawBitmap( bottom4_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    dc.DrawBitmap( bottom4_jpg, 0, top1_jpg.GetHeight() 
+                                                    + body_jpg.GetHeight());
                     break;
                 case 9:
                 case 10:
-                    dc.DrawBitmap( bottom5_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    dc.DrawBitmap( bottom5_jpg, 0, top1_jpg.GetHeight() 
+                                                    + body_jpg.GetHeight());
                     break;
                 case 11:
                 case 12:
-                    dc.DrawBitmap( bottom6_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    dc.DrawBitmap( bottom6_jpg, 0, top1_jpg.GetHeight() 
+                                                    + body_jpg.GetHeight());
                     break;
                 case 13:
                 case 14:
-                    dc.DrawBitmap( bottom7_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    dc.DrawBitmap( bottom7_jpg, 0, top1_jpg.GetHeight() 
+                                                    + body_jpg.GetHeight());
                     break;
                 case 15:
                 case 16:
-                    dc.DrawBitmap( bottom8_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    dc.DrawBitmap( bottom8_jpg, 0, top1_jpg.GetHeight() 
+                                                    + body_jpg.GetHeight());
                     break;
                 default:
-                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() + body_jpg.GetHeight());
+                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
+                                                    + body_jpg.GetHeight());
             }
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("%2.1f m/s",     od->device_data.wind.speed  ), 365, 20);
-                dc.DrawText( wxString::Format("%2.1f gusts",   od->device_data.wind.gust   ), 365, 40);
-                dc.DrawText( wxString::Format("%2.1f bearing", od->device_data.wind.bearing), 365, 60);
+                dc.DrawText( wxString::Format("%2.1f %s",
+                                    od->device_data.wind.speed,
+                                    owwl_unit_name(od, unit, 0)), 365, 20);
+                dc.DrawText( wxString::Format("%2.1f %s",
+                                    od->device_data.wind.gust,
+                                    owwl_unit_name(od, unit, 1)), 365, 40);
+                dc.DrawText( wxString::Format("%2.1f %s", 
+                                    od->device_data.wind.bearing,
+                                    owwl_unit_name(od, unit, 2)), 365, 60);
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Humidity, 0, 0);
@@ -968,13 +1051,18 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 {
                     dc.DrawBitmap( rh_png, 300, 180 );
                 }
-                dc.DrawText( wxString::Format("%2.1f %%", od->device_data.humidity.RH), 365, 180);
+                dc.DrawText( wxString::Format("%2.1f %s", 
+                                        od->device_data.humidity.RH,
+                                        owwl_unit_name(od, unit, 0)), 365, 180);
             }
 
-            od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Thermometer, 0);
+            od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
+                                                    OwwlTemp_Thermometer, 0);
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("%2.1f C", od->device_data.temperature.T), 30, 125);
+                dc.DrawText( wxString::Format("%2.1f %s", 
+                                    od->device_data.temperature.T,
+                                    owwl_unit_name(od, unit, 0)), 30, 125);
             }
             dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
             dc.SetPen( *wxBLACK_PEN );
@@ -988,19 +1076,26 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("BP: %2.1f mm/Hg", od->device_data.barom.bp), 280, 300);
+                dc.DrawText( wxString::Format("BP: %2.1f %s", 
+                                        od->device_data.barom.bp,
+                                        owwl_unit_name(od, unit, 0)), 280, 300);
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Rain, 0, 0);
             if(NULL != od)
             {
-                wxDateTime rain_time = wxDateTime(od->device_data.rain.rain_reset_time);
-                dc.DrawText( wxString::Format("Rain: %2.1f mm since %s", 
-                                                        od->device_data.rain.rain_since_reset,
-                                                        rain_time.FormatTime()), 180, 340);
-                                                        //od->device_data.rain.rain_count,
-                dc.DrawText( wxString::Format("(%2.1f mm/hr)", 
-                                                        od->device_data.rain.rain_rate), 220, 360);
+                wxDateTime rain_time = wxDateTime(
+                                        od->device_data.rain.rain_reset_time);
+                dc.DrawText( wxString::Format("Rain: %2.1f %s since %s", 
+                                    od->device_data.rain.rain_since_reset,
+                                    owwl_unit_name(od, unit, arg),
+                                    rain_time.FormatTime()),
+                            180, 340);
+                                    //od->device_data.rain.rain_count,
+                dc.DrawText( wxString::Format("(%2.1f %s)", 
+                                    od->device_data.rain.rain_rate,
+                                    owwl_unit_name(od, unit, 2)),
+                            220, 360);
             }
 
             wxString now = wxNow ();

@@ -27,13 +27,13 @@ _VERSIONSTR="0.85.0-1"
 
 all:    $(PROGRAM)
 
-owwl.o: ../oww_client-0.5.9/src/owwl.c
+owwl.o: ../oww_client-0.5.9/src/owwl.c ../oww_client-0.5.9/src/owwl.h
 	$(CC) -c -D__WXGUI__ -DNOGUI -I../oww_client-0.5.9/src/ -g -O0 -o $@ $<
 
 .c.o :
 	$(CC) -c -D__WXGUI__ -DNOGUI -o $@ ../oww-0.86.0/src/$<
 
-.cpp.o :
+.cpp.o : wxgui.h
 	$(CC) -c `wx-config --cflags` -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -I../oww_client-0.5.9/src/ -g -O0 -o $@ $<
 
 $(PROGRAM):	$(OBJECTS)
