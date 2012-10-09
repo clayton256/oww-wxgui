@@ -929,8 +929,15 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     owwl_data *od = NULL;
     int unit;
     int arg = 0;
+#if __WXGTK__
+    int fontSz = 12;
+#elif __WXOSX_COCOA__
+    int fontSz = 16;
+#else
+    int fontSz = ;
+#endif
 
-    wxFont f = wxFont(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
+    wxFont f = wxFont(fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
                                                         wxFONTWEIGHT_NORMAL);
     dc.SetFont(f);
 

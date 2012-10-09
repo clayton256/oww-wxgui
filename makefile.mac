@@ -1,6 +1,6 @@
 
 _VERSIONSTR="0.85.0-1"
-
+CCDEBUGFLAGS=-DOWWL_DEBUG
 all: Oww.app
 
 
@@ -9,7 +9,7 @@ pixmaps/oww.icns: pixmaps/oww.png
 	sips -s format icns pixmaps/oww.png --out pixmaps/oww.icn
 
 owwl.o: ../oww_client-0.5.9/src/owwl.c ../oww_client-0.5.9/src/owwl.h
-	/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/bk-deps gcc -mmacosx-version-min=10.5 -c -o owwl.o -D__WXGUI__ -DNOGUI -DOWWL_DEBUG -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -D_FILE_OFFSET_BITS=64 -I./ -I/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib/wx/include/osx_cocoa-unicode-static-2.9 -I/Users/mark/Projects/wxWidgets-2.9.4/include -I../oww_client-0.5.9/src -DWX_PRECOMP -g -O0 -fno-common ../oww_client-0.5.9/src/owwl.c
+	/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/bk-deps gcc -mmacosx-version-min=10.5 -c -o owwl.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -D_FILE_OFFSET_BITS=64 -I./ -I/Users/mark/Projects/wxWidgets-2.9.4/cocoa-debug/lib/wx/include/osx_cocoa-unicode-static-2.9 -I/Users/mark/Projects/wxWidgets-2.9.4/include -I../oww_client-0.5.9/src -DWX_PRECOMP -g -O0 -fno-common ../oww_client-0.5.9/src/owwl.c
 
 
 wxgui.o: wxgui.cpp wxgui.h pixmaps/oww_xpm.xpm
