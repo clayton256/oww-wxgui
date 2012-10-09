@@ -941,6 +941,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             float speed = 0.0;
             float gust = 0.0;
             float bearing = 0.0;
+            char linebuf[128];
 
             dc.SetTextForeground( wxT("WHITE") );
 
@@ -953,35 +954,52 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 
             if(NULL != od)
             {
-               speed = od->device_data.wind.speed;
-               gust = od->device_data.wind.gust;
-               bearing = od->device_data.wind.bearing;
+               speed = 55.5; //od->val(od, unit, 0); //od->device_data.wind.speed;
+               gust = 99.9; //od->val(od, unit, 1); //od->device_data.wind.gust;
+               bearing = 180.0; //od->val(od, unit, 2); //od->device_data.wind.bearing;
             }
-            switch (counter % 3)
+            
+            int inc_top = 0;
+        #if 0
+            if(speed > 0.0 && speed < 1.0)
             {
-                case 0:
-                if (top1_jpg.IsOk())
-                    {
-                    dc.DrawBitmap( top1_jpg, 0, 0 );
-                    }
-                    counter++;
-                    break;
-
-                case 1:
-                    if (top2_jpg.IsOk())
-                    {
-                    dc.DrawBitmap( top2_jpg, 0, 0 );
-                    }
-                    counter++;
-                    break;
-                case 2:
-                    if (top3_jpg.IsOk())
-                    {
-                    dc.DrawBitmap( top3_jpg, 0, 0 );
-                    }
-                    counter = 0;
             }
+            else
+            {
+                if(speed )
+                {
+                }
+            }
+#else
+            inc_top = 1;
+#endif
+            if(inc_top)
+            {
+                switch (counter % 3)
+                {
+                    case 0:
+                    if (top1_jpg.IsOk())
+                        {
+                        dc.DrawBitmap( top1_jpg, 0, 0 );
+                        }
+                        counter++;
+                        break;
 
+                    case 1:
+                        if (top2_jpg.IsOk())
+                        {
+                        dc.DrawBitmap( top2_jpg, 0, 0 );
+                        }
+                        counter++;
+                        break;
+                    case 2:
+                        if (top3_jpg.IsOk())
+                        {
+                        dc.DrawBitmap( top3_jpg, 0, 0 );
+                        }
+                        counter = 0;
+                }
+            }
             if (body_jpg.IsOk())
                 dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight());
 
@@ -1033,15 +1051,18 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("%2.1f %s",
-                                    od->device_data.wind.speed,
-                                    owwl_unit_name(od, unit, 0)), 365, 20);
-                dc.DrawText( wxString::Format("%2.1f %s",
-                                    od->device_data.wind.gust,
-                                    owwl_unit_name(od, unit, 1)), 365, 40);
-                dc.DrawText( wxString::Format("%2.1f %s", 
-                                    od->device_data.wind.bearing,
-                                    owwl_unit_name(od, unit, 2)), 365, 60);
+                dc.DrawText( wxString::Format("%s %s",
+                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        //od->device_data.wind.speed,
+                                        owwl_unit_name(od, unit, 0)), 365, 20);
+                dc.DrawText( wxString::Format("%s %s",
+                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        //od->device_data.wind.gust,
+                                        owwl_unit_name(od, unit, 1)), 365, 40);
+                dc.DrawText( wxString::Format("%s %s", 
+                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        //od->device_data.wind.bearing,
+                                        owwl_unit_name(od, unit, 2)), 365, 60);
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Humidity, 0, 0);
@@ -1051,8 +1072,9 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 {
                     dc.DrawBitmap( rh_png, 300, 180 );
                 }
-                dc.DrawText( wxString::Format("%2.1f %s", 
-                                        od->device_data.humidity.RH,
+                dc.DrawText( wxString::Format("%s %s", 
+                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        //od->device_data.humidity.RH,
                                         owwl_unit_name(od, unit, 0)), 365, 180);
             }
 
@@ -1060,9 +1082,10 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                                     OwwlTemp_Thermometer, 0);
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("%2.1f %s", 
-                                    od->device_data.temperature.T,
-                                    owwl_unit_name(od, unit, 0)), 30, 125);
+                dc.DrawText( wxString::Format("%s %s", 
+                                    od->str(od, linebuf, 128, unit, -1, arg),
+                                    //od->device_data.temperature.T,
+                                    owwl_unit_name(od, unit, 0)), 25, 125);
             }
             dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
             dc.SetPen( *wxBLACK_PEN );
@@ -1071,13 +1094,14 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             dc.SetPen( *wxRED_PEN );
             dc.DrawRectangle( 170, 50, 60, 60 );
 
-            dc.SetTextForeground( wxT("BLUE") );
+            dc.SetTextForeground( wxT("RED") );
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("BP: %2.1f %s", 
-                                        od->device_data.barom.bp,
+                dc.DrawText( wxString::Format("BP: %s %s", 
+                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        //od->device_data.barom.bp,
                                         owwl_unit_name(od, unit, 0)), 280, 300);
             }
 
@@ -1086,15 +1110,17 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             {
                 wxDateTime rain_time = wxDateTime(
                                         od->device_data.rain.rain_reset_time);
-                dc.DrawText( wxString::Format("Rain: %2.1f %s since %s", 
-                                    od->device_data.rain.rain_since_reset,
-                                    owwl_unit_name(od, unit, arg),
-                                    rain_time.FormatTime()),
+                dc.DrawText( wxString::Format("Rain: %s %s since %s", 
+                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        //od->device_data.rain.rain_since_reset,
+                                        owwl_unit_name(od, unit, 0),
+                                        rain_time.FormatTime()),
                             180, 340);
                                     //od->device_data.rain.rain_count,
-                dc.DrawText( wxString::Format("(%2.1f %s)", 
-                                    od->device_data.rain.rain_rate,
-                                    owwl_unit_name(od, unit, 2)),
+                dc.DrawText( wxString::Format("(%s %s)", 
+                                        od->str(od, linebuf, 128, unit, -1, arg),
+                                        //od->device_data.rain.rain_rate,
+                                        owwl_unit_name(od, unit, 2)),
                             220, 360);
             }
 
