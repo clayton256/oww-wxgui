@@ -369,6 +369,72 @@ private:
     DECLARE_EVENT_TABLE()
 };
 
+//-----------------------------------------------------------------------------
+// MyCanvas
+//-----------------------------------------------------------------------------
+
+class MyCanvas: public wxPanel
+{
+public:
+    MyCanvas( wxWindow *parent, wxWindowID, const wxPoint &pos, 
+              const wxSize &size );
+    ~MyCanvas();
+
+    void OnPaint( wxPaintEvent &event );
+    void CreateAntiAliasedBitmap();
+
+    wxBitmap  body_jpg;
+    wxBitmap  bottom1_jpg;
+    wxBitmap  bottom2_jpg;
+    wxBitmap  bottom3_jpg;
+    wxBitmap  bottom4_jpg;
+    wxBitmap  bottom5_jpg;
+    wxBitmap  bottom6_jpg;
+    wxBitmap  bottom7_jpg;
+    wxBitmap  bottom8_jpg;
+    wxBitmap  rh_png;
+    wxBitmap  top1_jpg;
+    wxBitmap  top2_jpg;
+    wxBitmap  top3_jpg;
+
+    MyFrame *m_frame;
+    int xH, yH;
+
+private:
+    int m_counter;
+
+    DECLARE_EVENT_TABLE()
+};
+
+//-----------------------------------------------------------------------------
+// OwwlReaderTimer
+//-----------------------------------------------------------------------------
+class OwwlReaderTimer : public wxTimer
+{
+public:
+    OwwlReaderTimer(MyFrame * canvas);
+    void Notify();
+    void start();
+
+private:
+    MyFrame * m_frame;
+};
+
+
+//-----------------------------------------------------------------------------
+// RenderTimer
+//-----------------------------------------------------------------------------
+class RenderTimer : public wxTimer
+{
+public:
+    RenderTimer(MyFrame * canvas);
+    void Notify();
+    void start();
+private:
+    MyFrame * m_frame;
+};
+
+
 
 // ----------------------------------------------------------------------------
 // MyFrame
@@ -547,7 +613,7 @@ MyFrame::MyFrame()
     menuImage->Append(ID_MESSAGES, wxT("Messages"), "See running log");
     menuImage->Append(ID_MAP, wxT("Map"), "Map this station");
     menuImage->AppendSeparator();
-    menuImage->Append(ID_SETUP, wxT("Setup"), "Preferences");
+    menuImage->Append(ID_SETUP, wxT("Setup"), "Edit Preferences");
     menuImage->Append(ID_DEVICES, "Devices", "Configure devices");
     menuImage->AppendSeparator();
     menuImage->Append(ID_ABOUT, wxT("&About"));
@@ -866,6 +932,8 @@ void RenderTimer::Notify()
 {
     if(NULL != m_frame->m_auxilliaryFrame)
     {
+        m_frame->m_auxilliaryFrame->m_grid->SetCellValue(1,1,
+                                    m_frame->m_auxilliaryFrame->m_grid->GetCellValue(1,1));
         m_frame->m_auxilliaryFrame->m_grid->ForceRefresh();
         m_frame->m_auxilliaryFrame->Update();
         //m_frame->SetStatusText("auxFrame != NULL", 1);
@@ -877,7 +945,7 @@ void RenderTimer::Notify()
 
 void RenderTimer::start()
 {
-    wxTimer::Start(100);
+    wxTimer::Start(500);
 }
 
 
@@ -1003,14 +1071,14 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
     else
         top3_jpg = wxBitmap( image );
 
-
+    m_counter = 0;
+    return;
 }
 
 MyCanvas::~MyCanvas()
 {
 }
 
-int counter = 0;
 
 #include <wx/utils.h> 
 
@@ -1044,8 +1112,8 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 {
                     unit = unit_choices[unit_class];
                 }
-#if WXOWW_SIMULATION
-                speed = 55.5;
+#if 1 //WXOWW_SIMULATION
+                speed = 3.5;
                 gust = 99.9;
                 bearing = 180.0;
 #else
@@ -1055,48 +1123,63 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 #endif
                 
                 
-                int inc_top = 0;
-#if 0
-                if(speed > 0.0 && speed < 1.0)
+                static int inc_top = 0;
+#if 1
+                if(speed >= 0.0 && speed <= 1.0)
                 {
+                    inc_top = 0;
                 }
                 else
                 {
-                    if(speed )
+                    if(speed > 1.0 && speed <= 5.0)
                     {
+                        inc_top = inc_top==0 ? 1 : 0;
+                    }
+                    else
+                    {
+                        inc_top = 1;
                     }
                 }
 #else
                 inc_top = 1;
 #endif
+                //printf("%s\n", inc_top==1 ? "On" : "Off");
+
+                if (top1_jpg.IsOk())
+                {
+                     dc.DrawBitmap( top1_jpg, 0, 0 );
+                }
                 if(inc_top)
                 {
-                    switch (counter % 3)
+                    switch (m_counter % 3)
                     {
                         case 0:
                         if (top1_jpg.IsOk())
                             {
                             dc.DrawBitmap( top1_jpg, 0, 0 );
                             }
-                            counter++;
+                                //printf("Top 1\n");
+                            m_counter++;
                             break;
 
                         case 1:
                             if (top2_jpg.IsOk())
                             {
-                            dc.DrawBitmap( top2_jpg, 0, 0 );
+                                dc.DrawBitmap( top2_jpg, 0, 0 );
                             }
-                            counter++;
+                            //printf("Top 2\n");
+                            m_counter++;
                             break;
                         case 2:
                             if (top3_jpg.IsOk())
                             {
-                            dc.DrawBitmap( top3_jpg, 0, 0 );
+                                dc.DrawBitmap( top3_jpg, 0, 0 );
                             }
-                            counter = 0;
+                            //printf("Top 3\n");
+                            m_counter = 0;
                     }
                 }
-                
+
                 if (body_jpg.IsOk())
                     dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight());
 
@@ -1183,12 +1266,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                     //od->device_data.temperature.T,
                                     owwl_unit_name(od, unit, 0)), 25, 125);
             }
-            dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
-            dc.SetPen( *wxBLACK_PEN );
-            dc.DrawCircle( 350, 100, 30);
-            dc.SetBrush( *wxWHITE_BRUSH );
-            dc.SetPen( *wxRED_PEN );
-            dc.DrawRectangle( 170, 50, 60, 60 );
 
             dc.SetTextForeground( wxT("RED") );
 
@@ -1238,8 +1315,15 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                             220, 360);
             }
 
+            dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
+            dc.SetPen( *wxBLACK_PEN );
+            dc.DrawCircle( 325, 120, 25);
+            //dc.SetBrush( *wxWHITE_BRUSH );
+            //dc.SetPen( *wxRED_PEN );
+            dc.DrawRectangle( 322, 50, 5, 10 );
+
             wxString now = wxNow ();
-            m_frame->SetStatusText(now);
+            m_frame->SetStatusText(now, 1);
         }
     }
 
