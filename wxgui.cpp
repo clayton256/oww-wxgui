@@ -50,9 +50,9 @@
 extern "C" {
 #endif
 #define HAVE_GETTIMEOFDAY  
-#define HAVE_CONFIG_H
+//#define HAVE_CONFIG_H
 #include "owwl.h"
-#undef HAVE_CONFIG_H
+//#undef HAVE_CONFIG_H
 /* Call a function for each data entry */
     /* The function should return non-zero to break out of the loop */
 int
