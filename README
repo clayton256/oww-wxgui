@@ -2,3 +2,8 @@ Mark Clayton
 mark_clayton@users.sourceforge.net
 oww-wxgui
 
+oww-wxgui is an open source multiplatform client for the One wire Weather package. One wire Weather is a software package that reads Dallas Semiconductor based one-wire instruments. Oww runs on unix and RISC platforms. You can find more information on Oww at it's web site: oww.sourceforge.net. 
+
+oww-wxgui is based on wxWidgets (http://www.wxwidgets.org). 
+
+
