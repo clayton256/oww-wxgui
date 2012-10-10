@@ -36,6 +36,7 @@
 #include <wx/listctrl.h>
 #include <wx/config.h>
 #include <wx/aboutdlg.h>
+#include <wx/utils.h> 
 
 #include <netdb.h>
 #include <sys/socket.h>
@@ -48,7 +49,6 @@
 extern "C" {
 #endif
 #include "owwl.h"
-
 
 /* Call a function for each data entry */
     /* The function should return non-zero to break out of the loop */
@@ -104,7 +104,6 @@ int unit_choices[OWWL_UNIT_CLASS_LIMIT];
 
 class MyAuxilliaryFrame : public wxFrame
 {
-//DECLARE_CLASS(MyAuxilliaryFrame)
 public:
     MyAuxilliaryFrame(wxFrame *parent, const wxString& desc)
     {
@@ -127,18 +126,10 @@ private:
         {
             return false;
         }
+
         SetIcon(wxICON(oww));
+
         m_grid = (wxGrid*)NULL;
-#if 0
-        wxMenu *menu = new wxMenu;
-        menu->Append(wxID_SAVE);
-        wxMenuBar *mbar = new wxMenuBar;
-        mbar->Append(menu, wxT("Something here?"));
-        SetMenuBar(mbar);
-#endif
-#if 1
-        m_statusBar = CreateStatusBar(2);
-#endif
         m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
@@ -150,38 +141,22 @@ private:
         m_grid->SetLabelValue(wxHORIZONTAL, "  Unit  ", gridColUnit);
         InitPopulateCells();
         UpdateCellsUnits();
-        //PopulateCellVals();
         m_grid->SetRowLabelSize(wxGRID_AUTOSIZE);
         m_grid->SetColLabelSize(wxGRID_AUTOSIZE);
         m_grid->AutoSize();
         SetClientSize(m_grid->GetSize());
 
         Show();
-
         return true;
     }
-#if 0
-    void OnEraseBackground(wxEraseEvent& WXUNUSED(event))
-    {
-        // do nothing here to be able to see how transparent images are shown
-    }
-#endif
+
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
         PopulateCellVals();
-        //m_grid->AutoSize();
-    }
-#if 0
-    void OnSave(wxCommandEvent& WXUNUSED(event))
-    {
+        m_grid->AutoSize();
+        SetClientSize(m_grid->GetSize());
     }
 
-    void UpdateStatusBar()
-    {
-        wxLogStatus(this, wxT("Image size: (%d, %d), zoom %.2f"), 5, 10, 22.2 );
-        Refresh();
-    }
-#endif
     DECLARE_EVENT_TABLE()
 };
 
@@ -227,9 +202,9 @@ int MyAuxilliaryFrame::InitPopulateCells()
                         arg = owwl_next_arg(&(data[i]), arg) ;
                     }
                 }
-            }else SetStatusText("data->str NULL", 1);
-        }else SetStatusText("conn-data NULL", 1);
-    }else SetStatusText("conn NULL", 1);
+            }
+        }
+    }
     return 0;
 }
 
@@ -269,9 +244,9 @@ int MyAuxilliaryFrame::UpdateCellsUnits()
                         arg = owwl_next_arg(&(data[i]), arg) ;
                     }
                 }
-            }else SetStatusText("data->str NULL", 1);
-        }else SetStatusText("conn-data NULL", 1);
-    }else SetStatusText("conn NULL", 1);
+            }
+        }
+    }
     return 0;
 }
 
@@ -308,9 +283,9 @@ int MyAuxilliaryFrame::PopulateCellVals(void)
                         arg = owwl_next_arg(&(data[i]), arg) ;
                     }
                 }
-            }else SetStatusText("data->str NULL", 1);
-        }else SetStatusText("conn-data NULL", 1);
-    }else SetStatusText("conn NULL", 1);
+            }
+        }
+    }
     return 0;
 }
 
@@ -664,6 +639,9 @@ MyFrame::MyFrame()
                             break;
                         case Owwl_Read_Disconnect:
                             SetStatusText("Server disconnect");
+                            close(m_s);
+                            m_s = -1;
+                            g_connection = m_connection = NULL;
                             break;
                         case Owwl_Read_Again:
                             SetStatusText("Read again");
@@ -675,12 +653,18 @@ MyFrame::MyFrame()
                             SetStatusText("Read default");
                             break;
                     }
-                    owwl_foreach(m_connection, print_data, NULL/*client*/);
+                    if(m_connection)
+                    {
+                        owwl_foreach(m_connection, print_data, NULL/*client*/);
+                    }
                 }
                 else
                 {
                     wxLogStatus("Error: connect failed %d", errno);
+                    owwl_free(m_connection);
                     close(m_s);
+                    m_s = -1;
+                    g_connection = m_connection = NULL;
                 }
             }
             else
@@ -700,8 +684,9 @@ MyFrame::MyFrame()
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
     owwl_free(m_connection);
-    g_connection = m_connection = NULL;
     close(m_s);
+    m_s = -1;
+    g_connection = m_connection = NULL;
     m_renderTimer->Stop();
     delete m_renderTimer;
     Close( true );
@@ -842,7 +827,7 @@ void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
     m_config->Read("mapcmd", &url);
 
     char command[2048];
-    sprintf(command, url, m_connection->latitude, m_connection->longitude);
+    sprintf(command, url, g_connection->latitude, g_connection->longitude);
 
     wxArrayString output;
     wxExecute(wxString(command), output);
@@ -891,24 +876,33 @@ OwwlReaderTimer::OwwlReaderTimer(MyFrame* f) : wxTimer()
 void OwwlReaderTimer::Notify()
 {
 #if 1
-    int retval = owwl_read(m_frame->m_connection);
-    switch(retval)
+    if(NULL != m_frame)
     {
-        case Owwl_Read_Error:
-            m_frame->SetStatusText("Protocol error");
-            break;
-        case Owwl_Read_Disconnect:
-            m_frame->SetStatusText("Server disconnect");
-            break;
-        case Owwl_Read_Again:
-            m_frame->SetStatusText("Read again");
-            break;
-        case Owwl_Read_Read_And_Decoded:
-            //m_frame->SetStatusText("Read & Decoded");
-            break;
-        default:
-            m_frame->SetStatusText("Read default");
-            break;
+        if(NULL != m_frame->m_connection)
+        {
+            int retval = owwl_read(m_frame->m_connection);
+            switch(retval)
+            {
+                case Owwl_Read_Error:
+                    m_frame->SetStatusText("Protocol error");
+                    break;
+                case Owwl_Read_Disconnect:
+                    m_frame->SetStatusText("Server disconnect");
+                    close(m_frame->m_s);
+                    m_frame->m_s = -1;
+                    g_connection = m_frame->m_connection = NULL;
+                    break;
+                case Owwl_Read_Again:
+                    m_frame->SetStatusText("Read again");
+                    break;
+                case Owwl_Read_Read_And_Decoded:
+                    //m_frame->SetStatusText("Read & Decoded");
+                    break;
+                default:
+                    m_frame->SetStatusText("Read default");
+                    break;
+            }
+        }
     }
 #endif
 
@@ -932,13 +926,9 @@ void RenderTimer::Notify()
 {
     if(NULL != m_frame->m_auxilliaryFrame)
     {
-        m_frame->m_auxilliaryFrame->m_grid->SetCellValue(1,1,
-                                    m_frame->m_auxilliaryFrame->m_grid->GetCellValue(1,1));
         m_frame->m_auxilliaryFrame->m_grid->ForceRefresh();
         m_frame->m_auxilliaryFrame->Update();
-        //m_frame->SetStatusText("auxFrame != NULL", 1);
     }
-    //else m_frame->SetStatusText("auxFrame == NULL", 1);
     m_frame->m_canvas->Refresh();
     m_frame->m_canvas->Update();
 }
@@ -1080,7 +1070,6 @@ MyCanvas::~MyCanvas()
 }
 
 
-#include <wx/utils.h> 
 
 void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 {
@@ -1151,12 +1140,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 #else
                 inc_top = 1;
 #endif
-                //printf("%s\n", inc_top==1 ? "On" : "Off");
 
-                if (top1_jpg.IsOk())
-                {
-                     dc.DrawBitmap( top1_jpg, 0, 0 );
-                }
                 if(inc_top)
                 {
                     switch (m_counter % 3)
@@ -1166,7 +1150,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                             {
                             dc.DrawBitmap( top1_jpg, 0, 0 );
                             }
-                                //printf("Top 1\n");
                             m_counter++;
                             break;
 
@@ -1175,7 +1158,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                             {
                                 dc.DrawBitmap( top2_jpg, 0, 0 );
                             }
-                            //printf("Top 2\n");
                             m_counter++;
                             break;
                         case 2:
@@ -1183,7 +1165,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                             {
                                 dc.DrawBitmap( top3_jpg, 0, 0 );
                             }
-                            //printf("Top 3\n");
                             m_counter = 0;
                     }
                 }
@@ -1238,17 +1219,17 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                                         + body_jpg.GetHeight());
                 }
 
+                // Draw Wind Speed on canvas
                 dc.DrawText( wxString::Format("%s %s",
                                         od->str(od, linebuf, 128, unit, -1, 0),
-                                        //od->device_data.wind.speed,
                                         owwl_unit_name(od, unit, 0)), 365, 20);
+                // Draw Wind Gust Speed on canvas
                 dc.DrawText( wxString::Format("%s %s",
                                         od->str(od, linebuf, 128, unit, -1, 1),
-                                        //od->device_data.wind.gust,
                                         owwl_unit_name(od, unit, 1)), 365, 40);
+                // Draw Wind Bearing on canvas
                 dc.DrawText( wxString::Format("%s %s", 
                                         od->str(od, linebuf, 128, unit, -1, 2),
-                                        //od->device_data.wind.bearing,
                                         owwl_unit_name(od, unit, 2)), 365, 60);
             }
 
@@ -1261,7 +1242,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 }
                 dc.DrawText( wxString::Format("%s%s", 
                                         od->str(od, linebuf, 128, unit, -1, 0),
-                                        //od->device_data.humidity.RH,
                                         owwl_unit_name(od, unit, 0)), 365, 180);
             }
 
@@ -1271,7 +1251,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             {
                 dc.DrawText( wxString::Format("%s%s", 
                                     od->str(od, linebuf, 128, unit, -1, 0),
-                                    //od->device_data.temperature.T,
                                     owwl_unit_name(od, unit, 0)), 25, 125);
             }
 
@@ -1282,7 +1261,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             {
                 dc.DrawText( wxString::Format("BP: %s %s", 
                                         od->str(od, linebuf, 128, unit, -1, 0),
-                                        //od->device_data.barom.bp,
                                         owwl_unit_name(od, unit, 0)), 280, 300);
             }
 
@@ -1291,7 +1269,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             {
                 dc.DrawText( wxString::Format("Trh: %s %s", 
                             od->str(od, linebuf, 128, unit, -1, 0),
-                            //od->device_data.temperature.T,
                             owwl_unit_name(od, unit, 0)), 280, 260);
             }
 
@@ -1300,7 +1277,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             {
                 dc.DrawText( wxString::Format("Tb: %s %s", 
                             od->str(od, linebuf, 128, unit, -1, 0),
-                            //od->device_data.barom.bp,
                             owwl_unit_name(od, unit, 0)), 280, 280);
             }
 
@@ -1311,14 +1287,11 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         od->device_data.rain.rain_reset_time);
                 dc.DrawText( wxString::Format("Rain: %s %s since %s", 
                                         od->str(od, linebuf, 128, unit, -1, 0),
-                                        //od->device_data.rain.rain_since_reset,
                                         owwl_unit_name(od, unit, 0),
                                         rain_time.FormatTime()),
                             180, 340);
-                                    //od->device_data.rain.rain_count,
                 dc.DrawText( wxString::Format("(%s %s)", 
                                         od->str(od, linebuf, 128, unit, -1, 2),
-                                        //od->device_data.rain.rain_rate,
                                         owwl_unit_name(od, unit, 2)),
                             220, 360);
             }
@@ -1333,7 +1306,26 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             wxString now = wxNow ();
             m_frame->SetStatusText(now, 1);
         }
-    }
+        else
+        {
+                if (top1_jpg.IsOk())
+                {
+                     dc.DrawBitmap( top1_jpg, 0, 0 );
+                }
+
+                if (body_jpg.IsOk())
+                {
+                    dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight() );
+                }
+
+                if (bottom1_jpg.IsOk())
+                {
+                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                }
+        }// if(m_connection)
+
+    }// if(m_frame)
 
 
 #if 0
