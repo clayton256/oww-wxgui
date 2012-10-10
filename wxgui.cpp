@@ -585,7 +585,7 @@ MyFrame::MyFrame()
     wxMenuBar *menu_bar = new wxMenuBar();
     wxMenu *menuImage = new wxMenu;
     menuImage->Append(ID_AUXILLIARY, wxT("Auxilary"), "See other device values");
-    menuImage->Append(ID_MESSAGES, wxT("Messages"), "See running log");
+    menuImage->Append(ID_MESSAGES, wxT("Toggle Units"), "Switch between Imperial and Metric");
     menuImage->Append(ID_MAP, wxT("Map"), "Map this station");
     menuImage->AppendSeparator();
     menuImage->Append(ID_SETUP, wxT("Setup"), "Edit Preferences");
@@ -818,25 +818,43 @@ void MyFrame::OnSetup( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
-    m_auxilliaryFrame = new MyAuxilliaryFrame(this, "Auxilliary");
+    m_auxilliaryFrame = new MyAuxilliaryFrame(this, "Auxilliary Data");
 }
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
     wxString url;
     m_config->Read("mapcmd", &url);
+    if(NULL != m_connection)
+    {
+        char command[2048];
+        sprintf(command, url, g_connection->latitude, g_connection->longitude);
 
-    char command[2048];
-    sprintf(command, url, g_connection->latitude, g_connection->longitude);
-
-    wxArrayString output;
-    wxExecute(wxString(command), output);
+        wxArrayString output;
+        wxExecute(wxString(command), output);
+    }
+    else
+    {
+        (void)wxMessageBox("Can not map a server when you're not connected to a server",
+                        "One wire Weather",
+                        wxICON_INFORMATION | wxOK );
+    }
 }
 
 
 void MyFrame::OnMessages( wxCommandEvent &WXUNUSED(event) )
 {
-    new MyDevicesFrame(this, "Messages");
+    //Toggle owwl units
+    int i;
+    if(NULL != m_connection)
+    {
+        for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
+        {
+            unit_choices[i] = (unit_choices[i]==OwwlUnit_Imperial)
+                                           ? OwwlUnit_Metric : OwwlUnit_Imperial;
+        }
+    }
+    //new MyDevicesFrame(this, "Messages");
 }
 
 
@@ -955,20 +973,21 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
     wxImage image;
     SetBackgroundColour(*wxWHITE);
     m_frame = (MyFrame *)parent;
-/*
-    wxBitmap bitmap( 100, 100 );
-
-    wxMemoryDC dc;
-    dc.SelectObject( bitmap );
-    dc.SetBrush( wxBrush( wxT("orange"), wxSOLID ) );
-    dc.SetPen( *wxBLACK_PEN );
-    dc.DrawRectangle( 0, 0, 100, 100 );
-    dc.SetBrush( *wxWHITE_BRUSH );
-    dc.DrawRectangle( 20, 20, 60, 60 );
-    dc.SelectObject( wxNullBitmap );
-*/
-    // try to find the directory with our images
-    wxString dir = /* wxGetCwd() + "/Projects/oww-wxgui*/ "./pixmaps/";
+    wxClientDC dc( this );
+    PrepareDC( dc );
+ 
+    // try to find the images in the platform specific location
+#ifdef __WXGTK__
+    wxString dir = "/usr/local/share/oww/pixmaps/";
+#elif __WXOSX_COCOA__
+    //wxString dir = "/Library/Application Support/Oww/pixmaps/";
+    wxString dir = wxGetCwd() + "/pixmaps/";
+#elif __WXWIN__
+    wxString dir = wxGetOSDirectory() + "/Oww/pixmaps/";
+#error just guessing how Windows works, plz fix
+#else
+#error define your platform
+#endif
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
       && wxFile::Exists( dir + wxT("top2.jpg")) 
@@ -984,7 +1003,87 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
       && wxFile::Exists( dir + wxT("rh.png")) )
     {
         // found image files
-    }
+        if ( !image.LoadFile( dir + wxString(_T("body.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            body_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("bottom1.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            bottom1_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("bottom2.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            bottom2_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("bottom3.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            bottom3_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("bottom4.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            bottom4_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("bottom5.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            bottom5_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("bottom6.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            bottom6_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("bottom7.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            bottom7_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("bottom8.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            bottom8_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("rh.png"))) )
+            wxLogError(_T("Can't load PNG image"));
+        else
+            rh_png = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("top1.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            top1_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("top2.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            top2_jpg = wxBitmap( image );
+
+        if ( !image.LoadFile( dir + wxString(_T("top3.jpg"))) )
+            wxLogError(_T("Can't load JPG image"));
+        else
+            top3_jpg = wxBitmap( image );
+
+                if (top1_jpg.IsOk())
+                {
+                     dc.DrawBitmap( top1_jpg, 0, 0 );
+                }
+
+                if (body_jpg.IsOk())
+                {
+                    dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight() );
+                }
+
+                if (bottom1_jpg.IsOk())
+                {
+                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
+                                                        + body_jpg.GetHeight());
+                }
+     }
     else
     {
         wxArrayString array;
@@ -995,71 +1094,6 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
                         wxICON_INFORMATION | wxOK );
         wxLogWarning(wxT("Can't find image files!"));
     }
-
-    if ( !image.LoadFile( dir + wxString(_T("body.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        body_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("bottom1.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        bottom1_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("bottom2.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        bottom2_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("bottom3.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        bottom3_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("bottom4.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        bottom4_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("bottom5.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        bottom5_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("bottom6.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        bottom6_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("bottom7.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        bottom7_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("bottom8.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        bottom8_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("rh.png"))) )
-        wxLogError(_T("Can't load PNG image"));
-    else
-        rh_png = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("top1.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        top1_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("top2.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        top2_jpg = wxBitmap( image );
-
-    if ( !image.LoadFile( dir + wxString(_T("top3.jpg"))) )
-        wxLogError(_T("Can't load JPG image"));
-    else
-        top3_jpg = wxBitmap( image );
 
     m_counter = 0;
     return;
@@ -1078,12 +1112,14 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     owwl_data *od = NULL;
     int unit;
     int arg = 0;
-#if __WXGTK__
+#ifdef __WXGTK__
     int fontSz = 12;
 #elif __WXOSX_COCOA__
     int fontSz = 16;
+#elif __WXWIN__
+    int fontSz = ; //plz fix
 #else
-    int fontSz = ;
+#error define your platform
 #endif
 
     wxFont f = wxFont(fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
@@ -1146,9 +1182,9 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                     switch (m_counter % 3)
                     {
                         case 0:
-                        if (top1_jpg.IsOk())
+                            if (top1_jpg.IsOk())
                             {
-                            dc.DrawBitmap( top1_jpg, 0, 0 );
+                                dc.DrawBitmap( top1_jpg, 0, 0 );
                             }
                             m_counter++;
                             break;
@@ -1166,6 +1202,31 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                 dc.DrawBitmap( top3_jpg, 0, 0 );
                             }
                             m_counter = 0;
+                    }
+                }
+                else
+                {
+                    //Redraw previous top image
+                    switch (m_counter)
+                    {
+                        case 0:
+                            if (top1_jpg.IsOk())
+                            {
+                                dc.DrawBitmap( top1_jpg, 0, 0 );
+                            }
+                            break;
+
+                        case 1:
+                            if (top2_jpg.IsOk())
+                            {
+                                dc.DrawBitmap( top2_jpg, 0, 0 );
+                            }
+                            break;
+                        case 2:
+                            if (top3_jpg.IsOk())
+                            {
+                                dc.DrawBitmap( top3_jpg, 0, 0 );
+                            }
                     }
                 }
 
