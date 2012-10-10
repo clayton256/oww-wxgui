@@ -110,12 +110,12 @@ public:
         Create(parent, desc); 
     }
     wxGrid *m_grid;
+    int UpdateCellsUnits(void);
 
 private:
     wxStatusBar * m_statusBar;
     enum gridColumns {gridColName, gridColData, gridColValue, gridColUnit};
     int InitPopulateCells(void);
-    int UpdateCellsUnits(void);
     int PopulateCellVals(void);
 
     bool Create(wxFrame *parent, const wxString& desc)
@@ -183,7 +183,7 @@ int MyAuxilliaryFrame::InitPopulateCells()
 
                     while (arg >= 0)
                     {
-                        int unit_class, unit = OwwlUnit_Metric ;
+                        int unit_class, unit;
                         linebuf[0] = '\0';
                         namebuff[0] = '\0';
                         unit_class = owwl_unit_class(data, arg) ;
@@ -230,7 +230,7 @@ int MyAuxilliaryFrame::UpdateCellsUnits()
 
                     while (arg >= 0)
                     {
-                        int unit_class, unit = OwwlUnit_Metric ;
+                        int unit_class, unit;
                         linebuf[0] = '\0';
                         namebuff[0] = '\0';
                         unit_class = owwl_unit_class(data, arg) ;
@@ -271,7 +271,7 @@ int MyAuxilliaryFrame::PopulateCellVals(void)
                     while (arg >= 0)
                     {
                         linebuf[0] = '\0';
-                        int unit_class, unit = OwwlUnit_Metric ;
+                        int unit_class, unit;
                         unit_class = owwl_unit_class(data, arg) ;
 
                         if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
@@ -854,6 +854,10 @@ void MyFrame::OnMessages( wxCommandEvent &WXUNUSED(event) )
                                            ? OwwlUnit_Metric : OwwlUnit_Imperial;
         }
     }
+    if(NULL != m_auxilliaryFrame)
+    {
+        m_auxilliaryFrame->UpdateCellsUnits();
+    }
     //new MyDevicesFrame(this, "Messages");
 }
 
@@ -1150,9 +1154,15 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 gust = 99.9;
                 bearing = 180.0;
 #else
-                speed = /*od->val(od, unit, 0); */od->device_data.wind.speed;
-                gust = /*od->val(od, unit, 1); */od->device_data.wind.gust;
-                bearing = /*od->val(od, unit, 2); */od->device_data.wind.bearing;
+#if 0
+                speed =   od->device_data.wind.speed;
+                gust =    od->device_data.wind.gust;
+                bearing = od->device_data.wind.bearing;
+#else
+                speed =   od->val(od, unit, 0);
+                gust =    od->val(od, unit, 1);
+                bearing = od->val(od, unit, 2);
+#endif
 #endif
                 
                 
