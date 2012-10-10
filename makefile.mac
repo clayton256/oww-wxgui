@@ -34,4 +34,12 @@ Oww.app: Oww Info.plist.in pixmaps/oww.icns
 clean:
 	rm -rf *.o Oww Oww.app
 
+diffowwl:
+	diff -x \*~ -rupN ../oww_client-0.5.9/src/ ../oww_client-0.5.9-jmc/src > owwl-0.5.9.patch
+
+patchowwl:
+	cd ../oww_client-0.5.9-jmc/src/
+	patch < ../../owwl-0.5.9.patch
+	cd ../../oww-wxgui
+
 
