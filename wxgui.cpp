@@ -1112,7 +1112,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 {
                     unit = unit_choices[unit_class];
                 }
-#if 1 //WXOWW_SIMULATION
+#if 0 //WXOWW_SIMULATION
                 speed = 3.5;
                 gust = 99.9;
                 bearing = 180.0;
