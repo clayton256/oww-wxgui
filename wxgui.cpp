@@ -49,7 +49,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define HAVE_GETTIMEOFDAY  
+#define HAVE_GETTIMEOFDAY 1
 //#define HAVE_CONFIG_H
 #include "owwl.h"
 //#undef HAVE_CONFIG_H
@@ -360,6 +360,7 @@ public:
 
     void OnPaint( wxPaintEvent &event );
     void CreateAntiAliasedBitmap();
+    void DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt );
 
     wxBitmap  body_jpg;
     wxBitmap  bottom1_jpg;
@@ -412,7 +413,15 @@ private:
     MyFrame * m_frame;
 };
 
-
+enum
+{
+    Menu_SubMenu = 450,
+    Menu_SubMenu_Normal,
+    Menu_SubMenu_Radio0,
+    Menu_SubMenu_Radio1,
+    Menu_SubMenu_Radio2,
+    Menu_SubMenu_Radio3,
+};
 
 // ----------------------------------------------------------------------------
 // MyFrame
@@ -443,10 +452,14 @@ public:
     owwl_conn         *m_connection;
 
 private:
+    void OnTestNormal(wxCommandEvent &event);
+    void OnTestCheck(wxCommandEvent &event);
+    void OnTestRadio(wxCommandEvent &event);
+
     wxLongLong owwl_version_num(void)
     {
         return OWW_PROTO_VERSION;
-    }
+    };
 
     DECLARE_DYNAMIC_CLASS(MyFrame)
     DECLARE_EVENT_TABLE()
@@ -543,13 +556,20 @@ print_data(owwl_conn *conn, owwl_data *data, void *user_data)
 
 IMPLEMENT_DYNAMIC_CLASS( MyFrame, wxFrame )
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
-    EVT_MENU    (ID_ABOUT, MyFrame::OnAbout)
-    EVT_MENU    (ID_QUIT,  MyFrame::OnQuit)
-    EVT_MENU    (ID_AUXILLIARY, MyFrame::OnAuxilliary)
-    EVT_MENU    (ID_MAP,   MyFrame::OnMap)
-    EVT_MENU    (ID_MESSAGES,  MyFrame::OnMessages)
-    EVT_MENU    (ID_SETUP, MyFrame::OnSetup)
-    EVT_MENU    (ID_DEVICES, MyFrame::OnDevices)
+    EVT_MENU(ID_ABOUT, MyFrame::OnAbout)
+    EVT_MENU(ID_QUIT,  MyFrame::OnQuit)
+    EVT_MENU(ID_AUXILLIARY, MyFrame::OnAuxilliary)
+    EVT_MENU(ID_MAP,   MyFrame::OnMap)
+    EVT_MENU(ID_MESSAGES,  MyFrame::OnMessages)
+    EVT_MENU(ID_SETUP, MyFrame::OnSetup)
+    EVT_MENU(ID_DEVICES, MyFrame::OnDevices)
+
+    EVT_MENU(Menu_SubMenu_Normal, MyFrame::OnTestNormal)
+    EVT_MENU(Menu_SubMenu_Radio0, MyFrame::OnTestRadio)
+    EVT_MENU(Menu_SubMenu_Radio1, MyFrame::OnTestRadio)
+    EVT_MENU(Menu_SubMenu_Radio2, MyFrame::OnTestRadio)
+    EVT_MENU(Menu_SubMenu_Radio3, MyFrame::OnTestRadio)
+
 END_EVENT_TABLE()
 
 MyFrame::MyFrame()
@@ -588,7 +608,17 @@ MyFrame::MyFrame()
     wxMenuBar *menu_bar = new wxMenuBar();
     wxMenu *menuImage = new wxMenu;
     menuImage->Append(ID_AUXILLIARY, wxT("Auxilary"), "See other device values");
-    menuImage->Append(ID_MESSAGES, wxT("Toggle Units"), "Switch between Imperial and Metric");
+    //menuImage->Append(ID_MESSAGES, wxT("Toggle Units"), "Switch between Imperial and Metric");
+    //menuImage->Append(Menu_SubMenu_Normal, wxT("Change units"), wxT("Change Units"));
+
+    wxMenu *subMenu = new wxMenu;
+    subMenu->AppendRadioItem(Menu_SubMenu_Radio1, wxT("Metric"), wxT("Metric"));
+    subMenu->AppendRadioItem(Menu_SubMenu_Radio1, wxT("Imperical"), wxT("Imperical"));
+    subMenu->AppendRadioItem(Menu_SubMenu_Radio2, wxT("Alt 1"), wxT("Alt 1"));
+    subMenu->AppendRadioItem(Menu_SubMenu_Radio3, wxT("Alt 2"), wxT("Alt 2"));
+
+    menuImage->Append(Menu_SubMenu, wxT("Change Units"), subMenu);
+
     menuImage->Append(ID_MAP, wxT("Map"), "Map this station");
     menuImage->AppendSeparator();
     menuImage->Append(ID_SETUP, wxT("Setup"), "Edit Preferences");
@@ -683,6 +713,39 @@ MyFrame::MyFrame()
 
     return;
 }
+
+
+void MyFrame::OnTestNormal(wxCommandEvent& WXUNUSED(event))
+{
+    wxLogMessage(wxT("Normal item selected"));
+}
+
+void MyFrame::OnTestCheck(wxCommandEvent& event)
+{
+    wxLogMessage(wxT("Check item %schecked"),
+                 event.IsChecked() ? wxT("") : wxT("un"));
+}
+
+void MyFrame::OnTestRadio(wxCommandEvent& event)
+{
+    int i;
+    int unit = event.GetId() - Menu_SubMenu_Radio0;
+    //wxLogMessage(wxT("Radio item %d selected"), unit);
+
+    if(NULL != m_connection)
+    {
+        for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
+        {
+            unit_choices[i] = unit;
+        }
+    }
+    if(NULL != m_auxilliaryFrame)
+    {
+        m_auxilliaryFrame->UpdateCellsUnits();
+    }
+    return;
+}
+
 
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
@@ -1110,15 +1173,10 @@ MyCanvas::~MyCanvas()
 {
 }
 
-
-
-void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
+void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
 {
-    wxPaintDC dc( this );
+    wxClientDC dc( this );
     PrepareDC( dc );
-    owwl_data *od = NULL;
-    int unit;
-    int arg = 0;
 #ifdef __WXGTK__
     int fontSz = 12;
 #elif __WXOSX_COCOA__
@@ -1130,7 +1188,36 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 #endif
 
     wxFont f = wxFont(fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
-                                                        wxFONTWEIGHT_NORMAL);
+                                                        wxFONTWEIGHT_BOLD);
+    wxColor fc = dc.GetTextForeground();
+    dc.SetFont(f);
+    dc.SetTextForeground( shadow );
+    dc.DrawText( str, pt.x+2, pt.y+2);
+    dc.SetTextForeground( fore );
+    dc.DrawText( str, pt.x, pt.y);
+
+    return;
+}
+
+void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
+{
+    wxPaintDC dc( this );
+    PrepareDC( dc );
+    owwl_data *od = NULL;
+    int unit;
+    int arg = 0;
+#ifdef __WXGTK__
+    int fontSz = 13;
+#elif __WXOSX_COCOA__
+    int fontSz = 16;
+#elif __WXWIN__
+    int fontSz = ; //plz fix
+#else
+#error define your platform
+#endif
+
+    wxFont f = wxFont(fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
+                                                        wxFONTWEIGHT_BOLD);
     dc.SetFont(f);
 
     if(m_frame)
@@ -1294,17 +1381,20 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 }
 
                 // Draw Wind Speed on canvas
-                dc.DrawText( wxString::Format("%s %s",
+                DrawText( wxString::Format("%s %s",
                                         od->str(od, linebuf, 128, unit, -1, 0),
-                                        owwl_unit_name(od, unit, 0)), 365, 20);
+                                        owwl_unit_name(od, unit, 0)), 
+                        wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(365, 20));
                 // Draw Wind Gust Speed on canvas
-                dc.DrawText( wxString::Format("%s %s",
+                DrawText( wxString::Format("%s %s",
                                         od->str(od, linebuf, 128, unit, -1, 1),
-                                        owwl_unit_name(od, unit, 1)), 365, 40);
+                                        owwl_unit_name(od, unit, 1)), 
+                        wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(365, 40));
                 // Draw Wind Bearing on canvas
-                dc.DrawText( wxString::Format("%s %s", 
+                DrawText( wxString::Format("%s %s", 
                                         od->str(od, linebuf, 128, unit, -1, 2),
-                                        owwl_unit_name(od, unit, 2)), 365, 60);
+                                        owwl_unit_name(od, unit, 2)), 
+                        wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(365, 60));
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Humidity, 0, 0);
@@ -1314,60 +1404,77 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 {
                     dc.DrawBitmap( rh_png, 300, 180 );
                 }
-                dc.DrawText( wxString::Format("%s%s", 
+                DrawText( wxString::Format("%s%s", 
                                         od->str(od, linebuf, 128, unit, -1, 0),
-                                        owwl_unit_name(od, unit, 0)), 365, 180);
+                                        owwl_unit_name(od, unit, 0)), 
+                        wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(365, 180));
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
                                                     OwwlTemp_Thermometer, 0);
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("%s%s", 
+                DrawText( wxString::Format("%s%s", 
                                     od->str(od, linebuf, 128, unit, -1, 0),
-                                    owwl_unit_name(od, unit, 0)), 25, 125);
+                                    owwl_unit_name(od, unit, 0)), 
+                        wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(25, 125));
             }
 
-            dc.SetTextForeground( wxT("RED") );
-
-            od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
-            if(NULL != od)
-            {
-                dc.DrawText( wxString::Format("BP: %s %s", 
-                                        od->str(od, linebuf, 128, unit, -1, 0),
-                                        owwl_unit_name(od, unit, 0)), 280, 300);
-            }
-
+            dc.SetTextForeground( wxT("LIGHTBLUE") );
             od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Humidity, 0);
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("Trh: %s %s", 
+                DrawText( wxString::Format("Trh: %s %s", 
                             od->str(od, linebuf, 128, unit, -1, 0),
-                            owwl_unit_name(od, unit, 0)), 280, 260);
+                            owwl_unit_name(od, unit, 0)), 
+                        wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(280, 260));
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Barometer, 0);
             if(NULL != od)
             {
-                dc.DrawText( wxString::Format("Tb: %s %s", 
+                DrawText( wxString::Format("Tb: %s %s", 
                             od->str(od, linebuf, 128, unit, -1, 0),
-                            owwl_unit_name(od, unit, 0)), 280, 280);
+                            owwl_unit_name(od, unit, 0)), 
+                        wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(280, 290));
             }
 
+            od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
+            if(NULL != od)
+            {
+#if 0
+                dc.SetTextForeground( wxT("BLACK") );
+                dc.DrawText( wxString::Format("BP: %s %s", 
+                                        od->str(od, linebuf, 128, unit, -1, 0),
+                                        owwl_unit_name(od, unit, 0)), 282, 322);
+                dc.SetTextForeground( wxT("LIGHTBLUE") );
+                dc.DrawText( wxString::Format("BP: %s %s", 
+                                        od->str(od, linebuf, 128, unit, -1, 0),
+                                        owwl_unit_name(od, unit, 0)), 280, 320);
+#else
+                DrawText(wxString::Format("BP: %s %s", 
+                                        od->str(od, linebuf, 128, unit, 3, 0),
+                                        owwl_unit_name(od, unit, 0)), 
+                        wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(280,320));
+
+#endif
+            }
+
+            dc.SetTextForeground( wxT("RED") );
             od = owwl_find(m_frame->m_connection, OwwlDev_Rain, 0, 0);
             if(NULL != od)
             {
                 wxDateTime rain_time = wxDateTime(
                                         od->device_data.rain.rain_reset_time);
-                dc.DrawText( wxString::Format("Rain: %s %s since %s", 
+                DrawText( wxString::Format("Rain: %s %s since %s", 
                                         od->str(od, linebuf, 128, unit, -1, 0),
                                         owwl_unit_name(od, unit, 0),
                                         rain_time.FormatTime()),
-                            180, 340);
-                dc.DrawText( wxString::Format("(%s %s)", 
+                            wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(25, 360));
+                DrawText( wxString::Format("(%s %s)", 
                                         od->str(od, linebuf, 128, unit, -1, 2),
                                         owwl_unit_name(od, unit, 2)),
-                            220, 360);
+                            wxT("LIGHTBLUE"), wxT("BLACK"), wxPoint(325, 360));
             }
 
             dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
@@ -1443,3 +1550,35 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 
 }
 
+
+
+
+class wxShadowDC:wxDC
+{
+public:
+    void SetTextShadow(const wxColour & colour)
+    {
+        m_shadowColour = colour;
+    }
+
+    wxColour GetTextShadow(void)
+    {
+        return m_shadowColour;
+    }
+
+    void DrawShadowText(wxString str, wxPoint pt)
+    {
+        wxPoint shadowPt = pt;
+        shadowPt.x = shadowPt.x + 2;
+        shadowPt.y = shadowPt.y + 2;
+        wxColour foreColour = GetTextForeground();
+        SetTextForeground(m_shadowColour);
+        DrawText(str, shadowPt);
+
+        SetTextForeground(foreColour);
+        DrawText(str, pt);
+    }
+    
+private:
+    wxColour m_shadowColour;
+};
