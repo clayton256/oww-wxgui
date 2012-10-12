@@ -1013,11 +1013,11 @@ void RenderTimer::Notify()
 {
     if(NULL != m_frame->m_auxilliaryFrame)
     {
-        m_frame->m_auxilliaryFrame->m_grid->ForceRefresh();
-        m_frame->m_auxilliaryFrame->Update();
+//        m_frame->m_auxilliaryFrame->m_grid->ForceRefresh();
+//        m_frame->m_auxilliaryFrame->Update();
     }
     m_frame->m_canvas->Refresh();
-    m_frame->m_canvas->Update();
+//    m_frame->m_canvas->Update();
 }
 
 void RenderTimer::start()
