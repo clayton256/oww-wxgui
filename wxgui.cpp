@@ -281,7 +281,7 @@ int MyAuxilliaryFrame::PopulateCellVals(void)
 
                         if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
                             unit = unit_choices[unit_class] ;
-        
+
                         wxString old_val = m_grid->GetCellValue(cntr, 2);
                         wxString new_val = (data[i]).str(&(data[i]), linebuf, 128, unit, -1, arg);
                         if(false == old_val.IsSameAs(new_val))
@@ -1137,21 +1137,21 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
         else
             top3_jpg = wxBitmap( image );
 
-                if (top1_jpg.IsOk())
-                {
-                     dc.DrawBitmap( top1_jpg, 0, 0 );
-                }
+        if (top1_jpg.IsOk())
+        {
+             dc.DrawBitmap( top1_jpg, 0, 0 );
+        }
 
-                if (body_jpg.IsOk())
-                {
-                    dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight() );
-                }
+        if (body_jpg.IsOk())
+        {
+            dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight() );
+        }
 
-                if (bottom1_jpg.IsOk())
-                {
-                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
-                                                        + body_jpg.GetHeight());
-                }
+        if (bottom1_jpg.IsOk())
+        {
+            dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
+                                                + body_jpg.GetHeight());
+        }
      }
     else
     {
@@ -1174,7 +1174,7 @@ MyCanvas::~MyCanvas()
 
 void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
 {
-    wxClientDC dc( this );
+    wxPaintDC dc( this );
     PrepareDC( dc );
 #ifdef __WXGTK__
     int fontSz = 12;
