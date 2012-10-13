@@ -23,7 +23,10 @@
     #include <wx/wx.h>
 #endif
 
+// wxWidget includes
 #include <wx/image.h>
+#include <wx/imaglist.h>
+#include <wx/artprov.h>
 #include <wx/file.h>
 #include <wx/filefn.h>
 #include <wx/filename.h>
@@ -37,24 +40,29 @@
 #include <wx/config.h>
 #include <wx/aboutdlg.h>
 #include <wx/utils.h> 
+#include <wx/notifmsg.h>
+#include <wx/propdlg.h>
+#include <wx/spinctrl.h>
+#include <wx/bookctrl.h>
 
+// system includes
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <sys/time.h>
 
+// app include
 #include "wxgui.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 #define HAVE_GETTIMEOFDAY 1
-//#define HAVE_CONFIG_H
 #include "owwl.h"
-//#undef HAVE_CONFIG_H
+
 /* Call a function for each data entry */
-    /* The function should return non-zero to break out of the loop */
+/* The function should return non-zero to break out of the loop */
 int
 owwl_foreach_jmc(owwl_conn *conn, owwl_func func, void *user_data)
 {
@@ -79,7 +87,6 @@ owwl_conn *g_connection;
 #ifndef wxHAS_IMAGES_IN_RESOURCES
     #include "pixmaps/oww_xpm.xpm"
 #endif
-
 
 
 
@@ -314,10 +321,9 @@ public:
     MySettingsDialog(wxWindow* parent, int dialogType);
     ~MySettingsDialog();
 
-#if 0
-    wxPanel* CreateGeneralSettingsPage(wxWindow* parent);
-    wxPanel* CreateAestheticSettingsPage(wxWindow* parent);
-#endif
+    wxPanel* CreateServerSettingsPage(wxWindow* parent);
+    wxPanel* CreateDisplaySettingsPage(wxWindow* parent);
+    wxPanel* CreateLaunchSettingsPage(wxWindow* parent);
 
 protected:
     enum {
@@ -330,6 +336,8 @@ protected:
         ID_BACKGROUND_STYLE,
         ID_FONT_SIZE
     };
+
+    wxImageList*    m_imageList;
 
 DECLARE_EVENT_TABLE()
 };
@@ -431,6 +439,10 @@ enum
     Menu_SubMenu_Radio1,
     Menu_SubMenu_Radio2,
     Menu_SubMenu_Radio3,
+    DIALOGS_PROPERTY_SHEET,
+    DIALOGS_PROPERTY_SHEET_TOOLBOOK,
+    DIALOGS_PROPERTY_SHEET_BUTTONTOOLBOOK,
+
 };
 
 // ----------------------------------------------------------------------------
@@ -463,8 +475,8 @@ public:
 
 private:
     void OnMenuSetUnits(wxCommandEvent &event);
-
     int InitServerConnection(void);
+    void OnPropertySheet(wxCommandEvent& event);
 
     wxLongLong owwl_version_num(void)
     {
@@ -579,7 +591,12 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_MENU(Menu_SubMenu_Radio2, MyFrame::OnMenuSetUnits)
     EVT_MENU(Menu_SubMenu_Radio3, MyFrame::OnMenuSetUnits)
 
+    EVT_MENU(DIALOGS_PROPERTY_SHEET,                MyFrame::OnPropertySheet)
+    EVT_MENU(DIALOGS_PROPERTY_SHEET_TOOLBOOK,       MyFrame::OnPropertySheet)
+    EVT_MENU(DIALOGS_PROPERTY_SHEET_BUTTONTOOLBOOK, MyFrame::OnPropertySheet)
+
 END_EVENT_TABLE()
+
 
 MyFrame::MyFrame()
     : wxFrame( (wxFrame *)NULL, wxID_ANY, wxT("Oww"), 
@@ -634,7 +651,10 @@ MyFrame::MyFrame()
 #endif
     menuImage->Append(ID_MAP, wxT("Map"), "Map this station");
     menuImage->AppendSeparator();
-    menuImage->Append(ID_SETUP, wxT("Setup"), "Edit Preferences");
+    //menuImage->Append(ID_SETUP, wxT("Setup"), "Edit Preferences");
+    menuImage->Append(DIALOGS_PROPERTY_SHEET, wxT("Setup"), "Edit Preferences");
+    menuImage->Append(DIALOGS_PROPERTY_SHEET_TOOLBOOK, wxT("&Toolbook sheet\tShift-Ctrl-T"));
+
     menuImage->Append(ID_DEVICES, "Devices", "Configure devices");
     menuImage->AppendSeparator();
     menuImage->Append(ID_ABOUT, wxT("&About"));
@@ -951,6 +971,269 @@ void MyFrame::OnDevices(wxCommandEvent& WXUNUSED(event))
     new MyDevicesFrame(this, "Devices");
 }
 
+
+void MyFrame::OnPropertySheet(wxCommandEvent& event)
+{
+    MySettingsDialog dialog(this, event.GetId());
+    dialog.ShowModal();
+}
+
+
+// ----------------------------------------------------------------------------
+// SettingsDialog
+// ----------------------------------------------------------------------------
+
+IMPLEMENT_CLASS(MySettingsDialog, wxPropertySheetDialog)
+
+BEGIN_EVENT_TABLE(MySettingsDialog, wxPropertySheetDialog)
+END_EVENT_TABLE()
+
+MySettingsDialog::MySettingsDialog(wxWindow* win, int dialogType)
+{
+    SetExtraStyle(wxDIALOG_EX_CONTEXTHELP|wxWS_EX_VALIDATE_RECURSIVELY);
+
+    int tabImage1 = -1;
+    int tabImage2 = -1;
+    int tabImage3 = -1;
+
+    bool useToolBook = (dialogType == DIALOGS_PROPERTY_SHEET_TOOLBOOK || dialogType == DIALOGS_PROPERTY_SHEET_BUTTONTOOLBOOK);
+    int resizeBorder = wxRESIZE_BORDER;
+
+    if (useToolBook)
+    {
+        resizeBorder = 0;
+        tabImage1 = 0;
+        tabImage2 = 1;
+        tabImage2 = 3;
+
+        int sheetStyle = wxPROPSHEET_SHRINKTOFIT;
+        if (dialogType == DIALOGS_PROPERTY_SHEET_BUTTONTOOLBOOK)
+            sheetStyle |= wxPROPSHEET_BUTTONTOOLBOOK;
+        else
+            sheetStyle |= wxPROPSHEET_TOOLBOOK;
+
+        SetSheetStyle(sheetStyle);
+        SetSheetInnerBorder(0);
+        SetSheetOuterBorder(0);
+
+        // create a dummy image list with a few icons
+        const wxSize imageSize(32, 32);
+
+        m_imageList = new wxImageList(imageSize.GetWidth(), imageSize.GetHeight());
+        m_imageList->
+            Add(wxArtProvider::GetIcon(wxART_INFORMATION, wxART_OTHER, imageSize));
+        m_imageList->
+            Add(wxArtProvider::GetIcon(wxART_QUESTION, wxART_OTHER, imageSize));
+        m_imageList->
+            Add(wxArtProvider::GetIcon(wxART_WARNING, wxART_OTHER, imageSize));
+        m_imageList->
+            Add(wxArtProvider::GetIcon(wxART_ERROR, wxART_OTHER, imageSize));
+    }
+    else
+        m_imageList = NULL;
+
+    Create(win, wxID_ANY, _("Preferences"), wxDefaultPosition, wxDefaultSize,
+        wxDEFAULT_DIALOG_STYLE| (int)wxPlatform::IfNot(wxOS_WINDOWS_CE, resizeBorder)
+    );
+
+    // If using a toolbook, also follow Mac style and don't create buttons
+    if (!useToolBook)
+        CreateButtons(wxOK | wxCANCEL |
+                        (int)wxPlatform::IfNot(wxOS_WINDOWS_CE, wxHELP)
+    );
+
+    wxBookCtrlBase* notebook = GetBookCtrl();
+    notebook->SetImageList(m_imageList);
+
+    wxPanel* serverSettings = CreateServerSettingsPage(notebook);
+    wxPanel* displaySettings = CreateDisplaySettingsPage(notebook);
+    wxPanel* launchSettings = CreateLaunchSettingsPage(notebook);
+
+    notebook->AddPage(serverSettings, _("Server"), true, tabImage1);
+    notebook->AddPage(displaySettings, _("Display"), false, tabImage2);
+    notebook->AddPage(launchSettings, _("URL Launch"), false, tabImage3);
+
+    LayoutDialog();
+}
+
+MySettingsDialog::~MySettingsDialog()
+{
+    delete m_imageList;
+}
+
+wxPanel* MySettingsDialog::CreateServerSettingsPage(wxWindow* parent)
+{
+    wxPanel* panel = new wxPanel(parent, wxID_ANY);
+
+    wxBoxSizer *topSizer = new wxBoxSizer( wxVERTICAL );
+    wxBoxSizer *item0 = new wxBoxSizer( wxVERTICAL );
+
+    //// LOAD LAST FILE
+
+    wxBoxSizer* itemSizer3 = new wxBoxSizer( wxHORIZONTAL );
+    wxCheckBox* checkBox3 = new wxCheckBox(panel, ID_LOAD_LAST_PROJECT, _("&Load last project on startup"), wxDefaultPosition, wxDefaultSize);
+    itemSizer3->Add(checkBox3, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    item0->Add(itemSizer3, 0, wxGROW|wxALL, 0);
+
+    //// AUTOSAVE
+
+    wxString autoSaveLabel = _("&Auto-save every");
+    wxString minsLabel = _("mins");
+
+    wxBoxSizer* itemSizer12 = new wxBoxSizer( wxHORIZONTAL );
+    wxCheckBox* checkBox12 = new wxCheckBox(panel, ID_AUTO_SAVE, autoSaveLabel, wxDefaultPosition, wxDefaultSize);
+
+#if wxUSE_SPINCTRL
+    wxSpinCtrl* spinCtrl12 = new wxSpinCtrl(panel, ID_AUTO_SAVE_MINS, wxEmptyString,
+        wxDefaultPosition, wxSize(40, wxDefaultCoord), wxSP_ARROW_KEYS, 1, 60, 1);
+#endif
+
+    itemSizer12->Add(checkBox12, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+#if wxUSE_SPINCTRL
+    itemSizer12->Add(spinCtrl12, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+#endif
+    itemSizer12->Add(new wxStaticText(panel, wxID_STATIC, minsLabel), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    item0->Add(itemSizer12, 0, wxGROW|wxALL, 0);
+
+    //// TOOLTIPS
+
+    wxBoxSizer* itemSizer8 = new wxBoxSizer( wxHORIZONTAL );
+    wxCheckBox* checkBox6 = new wxCheckBox(panel, ID_SHOW_TOOLTIPS, _("Show &tooltips"), wxDefaultPosition, wxDefaultSize);
+    itemSizer8->Add(checkBox6, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    item0->Add(itemSizer8, 0, wxGROW|wxALL, 0);
+
+    topSizer->Add( item0, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
+
+    panel->SetSizerAndFit(topSizer);
+
+    return panel;
+}
+
+wxPanel* MySettingsDialog::CreateDisplaySettingsPage(wxWindow* parent)
+{
+    wxPanel* panel = new wxPanel(parent, wxID_ANY);
+
+    wxBoxSizer *topSizer = new wxBoxSizer( wxVERTICAL );
+    wxBoxSizer *item0 = new wxBoxSizer( wxVERTICAL );
+
+    //// PROJECT OR GLOBAL
+    wxString globalOrProjectChoices[2];
+    globalOrProjectChoices[0] = _("&New projects");
+    globalOrProjectChoices[1] = _("&This project");
+
+    wxRadioBox* projectOrGlobal = new wxRadioBox(panel, ID_APPLY_SETTINGS_TO, _("&Apply settings to:"),
+        wxDefaultPosition, wxDefaultSize, 2, globalOrProjectChoices);
+    item0->Add(projectOrGlobal, 0, wxGROW|wxALL, 5);
+
+    projectOrGlobal->SetSelection(0);
+
+    // Display Units: Metric, Imperial, Alt 1, Alt 2
+    wxArrayString unitChoices;
+    unitChoices.Add(wxT("Metric"));
+    unitChoices.Add(wxT("Imperial"));
+    unitChoices.Add(wxT("Alt 1"));
+    unitChoices.Add(wxT("Alt 2"));
+    wxStaticBox* staticBox3 = new wxStaticBox(panel, wxID_ANY, _("Display Units:"));
+
+    wxBoxSizer* styleSizer = new wxStaticBoxSizer( staticBox3, wxVERTICAL );
+    item0->Add(styleSizer, 0, wxGROW|wxALL, 5);
+
+    wxBoxSizer* itemSizer2 = new wxBoxSizer( wxHORIZONTAL );
+
+    wxChoice* choice2 = new wxChoice(panel, ID_BACKGROUND_STYLE, wxDefaultPosition, wxDefaultSize, unitChoices);
+
+    itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Units:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer2->Add(5, 5, 1, wxALL, 0);
+    itemSizer2->Add(choice2, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+
+    styleSizer->Add(itemSizer2, 0, wxGROW|wxALL, 5);
+
+#if wxUSE_SPINCTRL
+    //// FONT SIZE SELECTION
+
+    wxStaticBox* staticBox1 = new wxStaticBox(panel, wxID_ANY, _("Tile font size:"));
+    wxBoxSizer* itemSizer5 = new wxStaticBoxSizer( staticBox1, wxHORIZONTAL );
+
+    wxSpinCtrl* spinCtrl = new wxSpinCtrl(panel, ID_FONT_SIZE, wxEmptyString, wxDefaultPosition,
+        wxSize(80, wxDefaultCoord));
+    itemSizer5->Add(spinCtrl, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
+
+    item0->Add(itemSizer5, 0, wxGROW|wxLEFT|wxRIGHT, 5);
+#endif
+
+    topSizer->Add( item0, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
+    topSizer->AddSpacer(5);
+
+    panel->SetSizerAndFit(topSizer);
+
+    return panel;
+}
+
+
+
+wxPanel* MySettingsDialog::CreateLaunchSettingsPage(wxWindow* parent)
+{
+    wxPanel* panel = new wxPanel(parent, wxID_ANY);
+
+    wxBoxSizer *topSizer = new wxBoxSizer( wxVERTICAL );
+    wxBoxSizer *item0 = new wxBoxSizer( wxVERTICAL );
+
+    //// PROJECT OR GLOBAL
+    wxString globalOrProjectChoices[2];
+    globalOrProjectChoices[0] = _("&New projects");
+    globalOrProjectChoices[1] = _("&This project");
+
+    wxRadioBox* projectOrGlobal = new wxRadioBox(panel, ID_APPLY_SETTINGS_TO, _("&Apply settings to:"),
+        wxDefaultPosition, wxDefaultSize, 2, globalOrProjectChoices);
+    item0->Add(projectOrGlobal, 0, wxGROW|wxALL, 5);
+
+    projectOrGlobal->SetSelection(0);
+
+    // Display Units: Metric, Imperial, Alt 1, Alt 2
+    wxArrayString unitChoices;
+    unitChoices.Add(wxT("Firefox"));
+    unitChoices.Add(wxT("Safari"));
+    unitChoices.Add(wxT("Opera"));
+    unitChoices.Add(wxT("Camino"));
+    wxStaticBox* staticBox3 = new wxStaticBox(panel, wxID_ANY, _("Browser Options:"));
+
+    wxBoxSizer* styleSizer = new wxStaticBoxSizer( staticBox3, wxVERTICAL );
+    item0->Add(styleSizer, 0, wxGROW|wxALL, 5);
+
+    wxBoxSizer* itemSizer2 = new wxBoxSizer( wxVERTICAL );
+
+    wxChoice* choice2 = new wxChoice(panel, ID_BACKGROUND_STYLE, wxDefaultPosition, wxDefaultSize, unitChoices);
+    choice2->SetSelection(1);
+
+    itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Browser:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    //itemSizer2->Add(5, 5, 1, wxALL, 0);
+    itemSizer2->Add(choice2, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Map URL:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    //itemSizer2->Add(5, 5, 1, wxALL, 0);
+    itemSizer2->Add(new wxTextCtrl(panel, wxID_ANY, "??????", wxDefaultPosition, wxSize(80, -1), 0), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    //itemSizer2->Add(5, 5, 1, wxALL, 0);
+    styleSizer->Add(itemSizer2, 0, wxGROW|wxALL, 5);
+
+#if wxUSE_SPINCTRL
+    //// FONT SIZE SELECTION
+
+    wxStaticBox* staticBox1 = new wxStaticBox(panel, wxID_ANY, _("Tile font size:"));
+    wxBoxSizer* itemSizer5 = new wxStaticBoxSizer( staticBox1, wxHORIZONTAL );
+
+    wxSpinCtrl* spinCtrl = new wxSpinCtrl(panel, ID_FONT_SIZE, wxEmptyString, wxDefaultPosition,
+        wxSize(80, wxDefaultCoord));
+    itemSizer5->Add(spinCtrl, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
+
+    item0->Add(itemSizer5, 0, wxGROW|wxLEFT|wxRIGHT, 5);
+#endif
+
+    topSizer->Add( item0, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
+    topSizer->AddSpacer(5);
+
+    panel->SetSizerAndFit(topSizer);
+
+    return panel;
+}
 
 
 
