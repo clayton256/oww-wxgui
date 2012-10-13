@@ -21,6 +21,7 @@ defaults:
         mapurl http://www.mapquest.com/maps/map.adp?latlongtype=decimal&latitude=%f&longitude=%f
     launchcmds
         "internal"
+        "/Applications/Firefox.app/Contents/MacOS/firefox %s"
         "mozilla -remote openURL(%s, new-window)"
         "netscape -remote openURL(%s, new-window)"
         "kfmclient openURL %s"

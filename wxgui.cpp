@@ -464,6 +464,8 @@ public:
 private:
     void OnMenuSetUnits(wxCommandEvent &event);
 
+    int InitServerConnection(void);
+
     wxLongLong owwl_version_num(void)
     {
         return OWW_PROTO_VERSION;
@@ -647,7 +649,6 @@ MyFrame::MyFrame()
     SetStatusWidths( 2, widths );
     Refresh();
 
-    SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(474,441) );
     Show();
 
@@ -657,11 +658,23 @@ MyFrame::MyFrame()
     m_readerTimer = new OwwlReaderTimer(this);
     m_readerTimer->start();
 
+    if(0 == InitServerConnection())
+    {
+        SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
+    }
+    return;
+}
+
+int MyFrame::InitServerConnection(void)
+{
+    int retval = 0;
     {
         struct hostent  *host;
         struct sockaddr *address;
         struct sockaddr_in addr_in;
+
         host = gethostbyname(m_hostname.c_str()) ;
+
         if (host)
         {
             addr_in.sin_family = AF_INET;
@@ -669,6 +682,7 @@ MyFrame::MyFrame()
             memcpy(&addr_in.sin_addr, host->h_addr_list[0], sizeof(addr_in.sin_addr));
             address = (struct sockaddr *) &addr_in;
             int addr_len = sizeof(addr_in);
+
             m_s = socket(address->sa_family, SOCK_STREAM, 0);
             if(m_s != -1)
             {
@@ -679,27 +693,31 @@ MyFrame::MyFrame()
                     switch(retval)
                     {
                         case Owwl_Read_Error:
-                            SetStatusText("Protocol error");
+                            wxLogStatus("Protocol error");
+                            retval = -1;
                             break;
                         case Owwl_Read_Disconnect:
-                            SetStatusText("Server disconnect");
+                            wxLogStatus("Server disconnect");
                             close(m_s);
                             m_s = -1;
                             g_connection = m_connection = NULL;
+                            retval = -1;
                             break;
                         case Owwl_Read_Again:
-                            SetStatusText("Read again");
+                            wxLogStatus("Read again");
+                            retval = -1;
                             break;
                         case Owwl_Read_Read_And_Decoded:
                             //SetStatusText("Read & Decode");
                             break;
                         default:
-                            SetStatusText("Read default");
+                            retval = -1;
+                            wxLogStatus("Read default");
                             break;
                     }
                     if(m_connection)
                     {
-                        owwl_foreach(m_connection, print_data, NULL/*client*/);
+                        owwl_foreach(m_connection, print_data, NULL);
                     }
                 }
                 else
@@ -709,21 +727,24 @@ MyFrame::MyFrame()
                     close(m_s);
                     m_s = -1;
                     g_connection = m_connection = NULL;
+                    retval = -1;
                 }
             }
             else
             {
                 wxLogStatus("Error: s<0 %d", errno);
+                retval = -1;
             }
         }
         else
         {
-          wxLogStatus(this, wxT("Unable to resolve host name %s"), m_hostname);
+            wxLogStatus(wxT("Unable to resolve host name %s"), m_hostname);
+            retval = -1;
         }
     }
-
-    return;
+    return retval;
 }
+
 
 
 void MyFrame::OnMenuSetUnits(wxCommandEvent& event)
@@ -909,7 +930,6 @@ void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnMenuToggleUnits( wxCommandEvent &WXUNUSED(event) )
 {
-    //Toggle owwl units
     int i;
     if(NULL != m_connection)
     {
@@ -923,7 +943,6 @@ void MyFrame::OnMenuToggleUnits( wxCommandEvent &WXUNUSED(event) )
     {
         m_auxilliaryFrame->UpdateCellsUnits();
     }
-    //new MyDevicesFrame(this, "Messages");
 }
 
 
@@ -983,7 +1002,7 @@ void OwwlReaderTimer::Notify()
                     m_frame->SetStatusText("Read again");
                     break;
                 case Owwl_Read_Read_And_Decoded:
-                    //m_frame->SetStatusText("Read & Decoded");
+                    m_frame->SetStatusText("                  ");
                     break;
                 default:
                     m_frame->SetStatusText("Read default");
@@ -1013,11 +1032,11 @@ void RenderTimer::Notify()
 {
     if(NULL != m_frame->m_auxilliaryFrame)
     {
-//        m_frame->m_auxilliaryFrame->m_grid->ForceRefresh();
-//        m_frame->m_auxilliaryFrame->Update();
+        m_frame->m_auxilliaryFrame->m_grid->ForceRefresh();
+        m_frame->m_auxilliaryFrame->Update();
     }
     m_frame->m_canvas->Refresh();
-//    m_frame->m_canvas->Update();
+    m_frame->m_canvas->Update();
 }
 
 void RenderTimer::start()
@@ -1488,21 +1507,22 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
         }
         else
         {
-                if (top1_jpg.IsOk())
-                {
-                     dc.DrawBitmap( top1_jpg, 0, 0 );
-                }
+            if (top1_jpg.IsOk())
+            {
+                 dc.DrawBitmap( top1_jpg, 0, 0 );
+            }
 
-                if (body_jpg.IsOk())
-                {
-                    dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight() );
-                }
+            if (body_jpg.IsOk())
+            {
+                dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight() );
+            }
 
-                if (bottom1_jpg.IsOk())
-                {
-                    dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
-                                                        + body_jpg.GetHeight());
-                }
+            if (bottom1_jpg.IsOk())
+            {
+                dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
+                                                    + body_jpg.GetHeight());
+            }
+            m_frame->SetTitle(wxString::Format(wxT("%s"), "Oww")); 
         }// if(m_connection)
 
     }// if(m_frame)
