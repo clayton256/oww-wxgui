@@ -236,15 +236,11 @@ int MyAuxilliaryFrame::UpdateCellsUnits()
                 int i;
                 for (i=0; i<conn->data_count; ++i)
                 {
-                    char linebuf[128], namebuff[128];
-                    int length;
                     int arg = 0;
 
                     while (arg >= 0)
                     {
                         int unit_class, unit;
-                        linebuf[0] = '\0';
-                        namebuff[0] = '\0';
                         unit_class = owwl_unit_class(data, arg) ;
 
                         if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT))
@@ -325,16 +321,24 @@ public:
     wxPanel* CreateDisplaySettingsPage(wxWindow* parent);
     wxPanel* CreateLaunchSettingsPage(wxWindow* parent);
 
+    wxTextCtrl        *serverText;
+    wxSpinCtrl        *portSpin;
+    wxCheckBox        *launchAtStart;
+    wxChoice          *unitsChoice;
+    wxCheckBox        *animateDisplay;
+    wxChoice          *browserChoice;
+    wxTextCtrl        *urlCmdText;
+
+
 protected:
     enum {
-        ID_SHOW_TOOLTIPS = 100,
-        ID_AUTO_SAVE,
-        ID_AUTO_SAVE_MINS,
-        ID_LOAD_LAST_PROJECT,
-
-        ID_APPLY_SETTINGS_TO,
-        ID_BACKGROUND_STYLE,
-        ID_FONT_SIZE
+        ID_SERVER_TEXT= 100,
+        ID_PORT_SPIN,
+        ID_LAUNCH_CHECK,
+        ID_UNITS_CHOICE,
+        ID_ANIMATE_CHECK,
+        ID_BROWSER_CHOICE,
+        ID_URLCMD_TEXT
     };
 
     wxImageList*    m_imageList;
@@ -461,10 +465,14 @@ public:
     void OnAuxilliary( wxCommandEvent &event );
     void OnMap( wxCommandEvent &event );
     void OnMenuToggleUnits( wxCommandEvent &event );
+#if 0
     void OnSetup( wxCommandEvent &event );
     void OnDevices( wxCommandEvent &event );
+#endif
     void OnQuit( wxCommandEvent &event );
 
+    wxMenu            *menuImage;
+    wxMenu            *subMenu;
     MyCanvas          *m_canvas;
     MyAuxilliaryFrame *m_auxilliaryFrame;
     wxStatusBar       *m_statusbar;
@@ -472,6 +480,11 @@ public:
     int                m_port;
     SOCKET             m_s;
     owwl_conn         *m_connection;
+    wxString           m_mapurl;
+    bool               m_launchAtStart;
+    int                m_units;
+    bool               m_animateDisplay;
+    int                m_browser;
 
 private:
     void OnMenuSetUnits(wxCommandEvent &event);
@@ -482,6 +495,8 @@ private:
     {
         return OWW_PROTO_VERSION;
     };
+
+    void changeUnits(int units);
 
     DECLARE_DYNAMIC_CLASS(MyFrame)
     DECLARE_EVENT_TABLE()
@@ -526,11 +541,12 @@ char g_windStr[50];
 #endif
 
 static int
-print_data(owwl_conn *conn, owwl_data *data, void *user_data)
+print_data(owwl_conn * /*conn*/, owwl_data *data, void * /*user_data*/)
 {
+#if 0
   char linebuf[128], namebuff[128] ;
   int length ;
-
+#endif
   if (data->str)
   {
     int arg = 0 ;
@@ -575,6 +591,24 @@ print_data(owwl_conn *conn, owwl_data *data, void *user_data)
   return 0 ;
 }
 
+void MyFrame::changeUnits(int units)
+{
+    int i;
+    for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
+    {
+        unit_choices[i] = units;
+    }
+
+    if(NULL != subMenu)
+    {
+        subMenu->Check(Menu_SubMenu_Radio0, (m_units==OwwlUnit_Metric));
+        subMenu->Check(Menu_SubMenu_Radio1, (m_units==OwwlUnit_Imperial));
+        subMenu->Check(Menu_SubMenu_Radio2, (m_units==OwwlUnit_Alt1));
+        subMenu->Check(Menu_SubMenu_Radio3, (m_units==OwwlUnit_Alt2));
+    }
+    return;
+}
+
 
 IMPLEMENT_DYNAMIC_CLASS( MyFrame, wxFrame )
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
@@ -583,8 +617,10 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_MENU(ID_AUXILLIARY, MyFrame::OnAuxilliary)
     EVT_MENU(ID_MAP,   MyFrame::OnMap)
     EVT_MENU(ID_MESSAGES,  MyFrame::OnMenuToggleUnits)
+#if 0
     EVT_MENU(ID_SETUP, MyFrame::OnSetup)
     EVT_MENU(ID_DEVICES, MyFrame::OnDevices)
+#endif
 
     EVT_MENU(Menu_SubMenu_Radio0, MyFrame::OnMenuSetUnits)
     EVT_MENU(Menu_SubMenu_Radio1, MyFrame::OnMenuSetUnits)
@@ -609,7 +645,8 @@ MyFrame::MyFrame()
                 wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)
               )
 {
-
+    menuImage = NULL;
+    subMenu = NULL;
     m_connection = NULL;
     m_canvas = NULL;
     m_statusbar = NULL;
@@ -617,45 +654,48 @@ MyFrame::MyFrame()
     m_port = 8899;
     m_s = -1;
     m_auxilliaryFrame = NULL;
-    {
-        int i;
-        for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
-        {
-            unit_choices[i] = OwwlUnit_Imperial;
-            //unit_choices[i] = OwwlUnit_Metric;
-        }
-    }
+    m_units = OwwlUnit_Imperial;
+    m_browser = 0;
+    m_mapurl = wxEmptyString;
+
     SetIcon(wxICON(oww));
 
     m_config = wxConfigBase::Get();
     m_config->Read("server", &m_hostname);
     m_port = m_config->ReadLong("port", m_port);
+    m_units = m_config->Read("units", OwwlUnit_Imperial);
+    changeUnits(m_units);
+    m_browser = m_config->Read("browser", (long int)0);
+    m_config->Read("mapurl", &m_mapurl);
+    m_config->Read("launchStStart", &m_launchAtStart);
+    m_config->Read("anumateDisplay", &m_animateDisplay);
 
     wxMenuBar *menu_bar = new wxMenuBar();
-    wxMenu *menuImage = new wxMenu;
+    menuImage = new wxMenu;
     menuImage->Append(ID_AUXILLIARY, wxT("Auxilary"), "See other device values");
 #ifdef __WXMOTIF__
     menuImage->Append(ID_MESSAGES, wxT("Toggle Units"), "Swap Meteric and Imperial");
 #else
-    wxMenu *subMenu = new wxMenu;
+    subMenu = new wxMenu;
     subMenu->AppendRadioItem(Menu_SubMenu_Radio0, wxT("Metric"), wxT("Metric"));
     subMenu->AppendRadioItem(Menu_SubMenu_Radio1, wxT("Imperical"), wxT("Imperical"));
     subMenu->AppendRadioItem(Menu_SubMenu_Radio2, wxT("Alt 1"), wxT("Alt 1"));
     subMenu->AppendRadioItem(Menu_SubMenu_Radio3, wxT("Alt 2"), wxT("Alt 2"));
-    subMenu->Check(Menu_SubMenu_Radio0, (unit_choices[0]==OwwlUnit_Metric));
-    subMenu->Check(Menu_SubMenu_Radio1, (unit_choices[0]==OwwlUnit_Imperial));
-    subMenu->Check(Menu_SubMenu_Radio2, (unit_choices[0]==OwwlUnit_Alt1));
-    subMenu->Check(Menu_SubMenu_Radio3, (unit_choices[0]==OwwlUnit_Alt2));
+    subMenu->Check(Menu_SubMenu_Radio0, (m_units==OwwlUnit_Metric));
+    subMenu->Check(Menu_SubMenu_Radio1, (m_units==OwwlUnit_Imperial));
+    subMenu->Check(Menu_SubMenu_Radio2, (m_units==OwwlUnit_Alt1));
+    subMenu->Check(Menu_SubMenu_Radio3, (m_units==OwwlUnit_Alt2));
 
     menuImage->Append(Menu_SubMenu, wxT("Change Units"), subMenu);
 #endif
     menuImage->Append(ID_MAP, wxT("Map"), "Map this station");
     menuImage->AppendSeparator();
-    //menuImage->Append(ID_SETUP, wxT("Setup"), "Edit Preferences");
     menuImage->Append(DIALOGS_PROPERTY_SHEET, wxT("Setup"), "Edit Preferences");
+#if 0
     menuImage->Append(DIALOGS_PROPERTY_SHEET_TOOLBOOK, wxT("&Toolbook sheet\tShift-Ctrl-T"));
-
+    menuImage->Append(ID_SETUP, wxT("Setup"), "Edit Preferences");
     menuImage->Append(ID_DEVICES, "Devices", "Configure devices");
+#endif
     menuImage->AppendSeparator();
     menuImage->Append(ID_ABOUT, wxT("&About"));
     menuImage->Append(ID_ABOUT, wxT("&Help"));
@@ -769,15 +809,11 @@ int MyFrame::InitServerConnection(void)
 
 void MyFrame::OnMenuSetUnits(wxCommandEvent& event)
 {
-    int i;
     int unit = event.GetId() - Menu_SubMenu_Radio0;
 
     if(NULL != m_connection)
     {
-        for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
-        {
-            unit_choices[i] = unit;
-        }
+        changeUnits(unit);
     }
     if(NULL != m_auxilliaryFrame)
     {
@@ -868,7 +904,7 @@ private:
 };
 
 
-
+#if 0
 BEGIN_EVENT_TABLE(MySetupDialog, wxDialog)
     EVT_BUTTON(wxID_ANY, MySetupDialog::OnButton)
 END_EVENT_TABLE()
@@ -921,6 +957,7 @@ void MyFrame::OnSetup( wxCommandEvent &WXUNUSED(event) )
                               wxPoint(100, 100), wxSize(200, 200));
     setupDialog.ShowModal();
 }
+#endif
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
@@ -929,12 +966,10 @@ void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
-    wxString url;
-    m_config->Read("mapcmd", &url);
     if(NULL != m_connection)
     {
         char command[2048];
-        sprintf(command, url, g_connection->latitude, g_connection->longitude);
+        sprintf(command, "open /Applications/Safari.app/Contents/MacOS/Safari " + m_mapurl, m_connection->latitude, m_connection->longitude);
 
         wxArrayString output;
         wxExecute(wxString(command), output);
@@ -953,11 +988,12 @@ void MyFrame::OnMenuToggleUnits( wxCommandEvent &WXUNUSED(event) )
     int i;
     if(NULL != m_connection)
     {
-        for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
-        {
-            unit_choices[i] = (unit_choices[i]==OwwlUnit_Imperial)
-                                           ? OwwlUnit_Metric : OwwlUnit_Imperial;
-        }
+        changeUnits((unit_choices[i]==OwwlUnit_Imperial) ? OwwlUnit_Metric : OwwlUnit_Imperial);
+        //for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
+        //{
+        //    unit_choices[i] = (unit_choices[i]==OwwlUnit_Imperial)
+        //                                   ? OwwlUnit_Metric : OwwlUnit_Imperial;
+        //}
     }
     if(NULL != m_auxilliaryFrame)
     {
@@ -965,34 +1001,51 @@ void MyFrame::OnMenuToggleUnits( wxCommandEvent &WXUNUSED(event) )
     }
 }
 
-
+#if 0
 void MyFrame::OnDevices(wxCommandEvent& WXUNUSED(event))
 {
     new MyDevicesFrame(this, "Devices");
 }
-
+#endif
 
 void MyFrame::OnPropertySheet(wxCommandEvent& event)
 {
     MySettingsDialog dialog(this, event.GetId());
 
+    dialog.serverText->SetValue(m_hostname);
+    dialog.portSpin->SetValue(m_port);
+    dialog.launchAtStart->SetValue(true);
+    dialog.unitsChoice->SetSelection(unit_choices[0]);
+    dialog.animateDisplay->SetValue(true);
+    dialog.browserChoice->SetSelection(m_browser);
+    dialog.urlCmdText->SetValue(m_mapurl);
+
     switch(dialog.ShowModal())
     {
         case wxID_CANCEL:
-        (void)wxMessageBox("Cancel",
-                        "One wire Weather",
-                        wxICON_INFORMATION | wxOK );
+            //(void)wxMessageBox("Cancel", "One wire Weather", wxICON_INFORMATION | wxOK );
             break;
         case wxID_OK:
-//        dialog.GetValue(ID_LOAD_LAST_PROJECT);
-        (void)wxMessageBox("OK",
-                        "One wire Weather",
-                        wxICON_INFORMATION | wxOK );
+            m_hostname = dialog.serverText->GetValue();
+            m_port = dialog.portSpin->GetValue();
+            m_launchAtStart = dialog.launchAtStart->GetValue();
+            m_units = dialog.unitsChoice->GetSelection();
+            m_animateDisplay = dialog.animateDisplay->GetValue();
+            m_browser = dialog.browserChoice->GetSelection();
+            m_mapurl = dialog.urlCmdText->GetValue();
+            m_config = wxConfigBase::Get();
+            m_config->Write("server", m_hostname);
+            m_config->Write("port", m_port);
+            m_config->Write("launchStStart", m_launchAtStart);
+            m_config->Write("units", m_units);
+            changeUnits(m_units);
+            m_config->Write("anumateDisplay", m_animateDisplay);
+            m_config->Write("browser", m_browser);
+            m_config->Write("mapurl", m_mapurl);
+            //(void)wxMessageBox("OK", "One wire Weather", wxICON_INFORMATION | wxOK );
             break;
         default:
-        (void)wxMessageBox("default",
-                        "One wire Weather",
-                        wxICON_INFORMATION | wxOK );
+            (void)wxMessageBox("default", "One wire Weather", wxICON_INFORMATION | wxOK );
     }
 }
 
@@ -1064,9 +1117,13 @@ MySettingsDialog::MySettingsDialog(wxWindow* win, int dialogType)
     wxBookCtrlBase* notebook = GetBookCtrl();
     notebook->SetImageList(m_imageList);
 
-    wxPanel* serverSettings = CreateServerSettingsPage(notebook);
-    wxPanel* displaySettings = CreateDisplaySettingsPage(notebook);
-    wxPanel* launchSettings = CreateLaunchSettingsPage(notebook);
+    wxPanel* serverSettings ;
+    wxPanel* displaySettings;
+    wxPanel* launchSettings ;
+
+    serverSettings = CreateServerSettingsPage(notebook);
+    displaySettings = CreateDisplaySettingsPage(notebook);
+    launchSettings = CreateLaunchSettingsPage(notebook);
 
     notebook->AddPage(serverSettings, _("Server"), true, tabImage1);
     notebook->AddPage(displaySettings, _("Display"), false, tabImage2);
@@ -1088,11 +1145,15 @@ wxPanel* MySettingsDialog::CreateServerSettingsPage(wxWindow* parent)
 
     // Connect to server on startup
     wxBoxSizer* itemSizer = new wxBoxSizer( wxVERTICAL );
+    serverText = new wxTextCtrl(panel, ID_SERVER_TEXT, wxEmptyString, wxDefaultPosition, wxSize(300, -1), wxTE_LEFT);
+    portSpin = new wxSpinCtrl(panel, ID_PORT_SPIN, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS, 7000, 65500, 8899);
+    launchAtStart = new wxCheckBox(panel, ID_LAUNCH_CHECK, _("Connect on startup"), wxDefaultPosition, wxDefaultSize);
     itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Server:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
-    itemSizer->Add(new wxTextCtrl(panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(300, -1), wxTE_LEFT), 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    wxCheckBox* checkBox = new wxCheckBox(panel, ID_LOAD_LAST_PROJECT, _("Connect on startup"), wxDefaultPosition, wxDefaultSize);
-    itemSizer->Add(checkBox, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
-    topSizer->Add( itemSizer, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
+    itemSizer->Add(serverText, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Port : ")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(portSpin, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
+    itemSizer->Add(launchAtStart, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    topSizer->Add(itemSizer, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
     panel->SetSizerAndFit(topSizer);
 
     return panel;
@@ -1105,17 +1166,18 @@ wxPanel* MySettingsDialog::CreateDisplaySettingsPage(wxWindow* parent)
     wxBoxSizer *topSizer = new wxBoxSizer( wxVERTICAL );
     wxBoxSizer *itemSizer = new wxBoxSizer( wxVERTICAL );
 
+    itemSizer->Add(new wxStaticText(panel, wxID_ANY, _("Units:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     // Display Units: Metric, Imperial, Alt 1, Alt 2
     wxArrayString unitChoices;
     unitChoices.Add(wxT("Metric"));
     unitChoices.Add(wxT("Imperial"));
     unitChoices.Add(wxT("Alt 1"));
     unitChoices.Add(wxT("Alt 2"));
-
-    wxChoice* choice = new wxChoice(panel, ID_BACKGROUND_STYLE, wxDefaultPosition, wxDefaultSize, unitChoices);
-    choice->SetSelection(1);
-    itemSizer->Add(new wxStaticText(panel, wxID_ANY, _("Units:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
-    itemSizer->Add(choice, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    unitsChoice = new wxChoice(panel, ID_UNITS_CHOICE, wxDefaultPosition, wxDefaultSize, unitChoices);
+    unitsChoice->SetSelection(1);
+    animateDisplay = new wxCheckBox(panel, ID_ANIMATE_CHECK, _("Animate"), wxDefaultPosition, wxDefaultSize);
+    itemSizer->Add(unitsChoice, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(animateDisplay, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     topSizer->Add(itemSizer, 0, wxGROW|wxALL, 5);
     panel->SetSizerAndFit(topSizer);
 
@@ -1131,22 +1193,28 @@ wxPanel* MySettingsDialog::CreateLaunchSettingsPage(wxWindow* parent)
     wxBoxSizer *topSizer = new wxBoxSizer( wxVERTICAL );
     wxBoxSizer *item0 = new wxBoxSizer( wxVERTICAL );
 
-    // Display Units: Metric, Imperial, Alt 1, Alt 2
-    wxArrayString unitChoices;
-    unitChoices.Add(wxT("Firefox"));
-    unitChoices.Add(wxT("Safari"));
-    unitChoices.Add(wxT("Opera"));
-    unitChoices.Add(wxT("Camino"));
     wxStaticBox* staticBox3 = new wxStaticBox(panel, wxID_ANY, _("Browser Options:"));
     wxBoxSizer* styleSizer = new wxStaticBoxSizer( staticBox3, wxVERTICAL );
     item0->Add(styleSizer, 1, wxGROW|wxALL, 1);
     wxBoxSizer* itemSizer2 = new wxBoxSizer( wxVERTICAL );
-    wxChoice* choice2 = new wxChoice(panel, ID_BACKGROUND_STYLE, wxDefaultPosition, wxDefaultSize, unitChoices);
-    choice2->SetSelection(1);
+    // Browser options
+    wxArrayString browserChoices;
+    browserChoices.Add(wxT("Firefox"));
+    browserChoices.Add(wxT("Safari"));
+    browserChoices.Add(wxT("Opera"));
+    browserChoices.Add(wxT("Camino"));
+    browserChoices.Add(wxT("Inernet Explorer"));
+    browserChoices.Add(wxT("Chrome"));
+    browserChoices.Add(wxT("Lynx"));
+    browserChoices.Add(wxT("Netscape"));
+    browserChoice = new wxChoice(panel, ID_BROWSER_CHOICE, wxDefaultPosition, wxDefaultSize, browserChoices);
+    browserChoice->SetSelection(1);
+    urlCmdText = new wxTextCtrl(panel, ID_URLCMD_TEXT, wxEmptyString, wxDefaultPosition, wxSize(400, -1), wxTE_LEFT);
+
     itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Browser:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    itemSizer2->Add(choice2, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer2->Add(browserChoice, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Map URL:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    itemSizer2->Add(new wxTextCtrl(panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(400, -1), wxTE_LEFT), 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
+    itemSizer2->Add(urlCmdText, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
     styleSizer->Add(itemSizer2, 0, wxGROW|wxALL, 2);
 
     topSizer->Add( item0, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
@@ -1428,7 +1496,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     PrepareDC( dc );
     owwl_data *od = NULL;
     int unit;
-    int arg = 0;
 #ifdef __WXGTK__
     int fontSz = 13;
 #elif __WXOSX_COCOA__
