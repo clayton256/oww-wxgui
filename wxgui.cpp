@@ -1166,6 +1166,7 @@ wxPanel* MySettingsDialog::CreateServerSettingsPage(wxWindow* parent)
     // Connect to server on startup
     wxBoxSizer* itemSizer = new wxBoxSizer( wxVERTICAL );
     serverText = new wxTextCtrl(panel, ID_SERVER_TEXT, wxEmptyString, wxDefaultPosition, wxSize(300, -1), wxTE_LEFT);
+    serverText->SetFocus();
     portSpin = new wxSpinCtrl(panel, ID_PORT_SPIN, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS, 7000, 65500, 8899);
     launchAtStart = new wxCheckBox(panel, ID_LAUNCH_CHECK, _("Connect on startup"), wxDefaultPosition, wxDefaultSize);
     itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Server:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
@@ -1195,6 +1196,7 @@ wxPanel* MySettingsDialog::CreateDisplaySettingsPage(wxWindow* parent)
     unitChoices.Add(wxT("Alt 2"));
     unitsChoice = new wxChoice(panel, ID_UNITS_CHOICE, wxDefaultPosition, wxDefaultSize, unitChoices);
     unitsChoice->SetSelection(1);
+    unitsChoice->SetFocus();
     animateDisplay = new wxCheckBox(panel, ID_ANIMATE_CHECK, _("Animate"), wxDefaultPosition, wxDefaultSize);
     itemSizer->Add(unitsChoice, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(animateDisplay, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
@@ -1229,6 +1231,7 @@ wxPanel* MySettingsDialog::CreateLaunchSettingsPage(wxWindow* parent)
     browserChoices.Add(wxT("Netscape"));
     browserChoice = new wxChoice(panel, ID_BROWSER_CHOICE, wxDefaultPosition, wxDefaultSize, browserChoices);
     browserChoice->SetSelection(1);
+    browserChoice->SetFocus();
     urlCmdText = new wxTextCtrl(panel, ID_URLCMD_TEXT, wxEmptyString, wxDefaultPosition, wxSize(400, -1), wxTE_LEFT);
 
     itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Browser:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
