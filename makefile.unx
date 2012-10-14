@@ -16,7 +16,8 @@
 #COVERITY=cov-build --dir cov-int 
 CC = $(COVERITY) gcc
 CCDEBUGFLAGS=-DOWWL_DEBUG
-
+OWWLVERS=0.5.9
+OWWLBASE=../oww_client-$(OWWLVERS)
 PROGRAM = Oww
 OBJECTS = wxgui.o owwl.o 
 
@@ -28,14 +29,14 @@ _VERSIONSTR="0.85.0-1"
 
 all:    $(PROGRAM)
 
-owwl.o: ../oww_client-0.5.9/src/owwl.c ../oww_client-0.5.9/src/owwl.h
+owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
 	$(CC) -c -D__WXGUI__ -DNOGUI -DHAVE_GETTIMEOFDAY=1 -I../oww_client-0.5.9/src/ -g -O0 -o $@ $<
 
 .c.o :
-	$(CC) -c -D__WXGUI__ -DNOGUI -o $@ ../oww-0.86.0/src/$<
+	$(CC) -c -D__WXGUI__ -DNOGUI -o $@ $(OWWLBASE)/src/$<
 
 .cpp.o : wxgui.h
-	$(CC) -c `wx-config --cflags` -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -I../oww_client-0.5.9/src/ -g -O0 -o $@ $<
+	$(CC) -c `wx-config --cflags` -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src/ -g -O0 -o $@ $<
 
 $(PROGRAM):	$(OBJECTS)
 	$(CC) -o $(PROGRAM) $(OBJECTS) `wx-config --libs`
@@ -44,7 +45,7 @@ clean:
 	rm -f *.o $(PROGRAM)
 
 diffowwl:
-	diff -x \*~ -rupN ../oww_client-0.5.9/src/ ../oww_client-0.5.9-jmc/src > owwl-0.5.9.patch
+	diff -x \*~ -rupN $(OWWLBASE)/src/ $(OWWLBASE)-jmc/src > owwl-0.5.9.patch
 
 patchowwl:
 	patch < owwl-0.5.9.patch
