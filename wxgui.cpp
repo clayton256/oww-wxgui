@@ -109,18 +109,38 @@ wxString default_unit_names[] = {"<Metric>", "<Imperial>", "<Alt1>", "<Alt2>"};
 int unit_choices[OWWL_UNIT_CLASS_LIMIT];
 
 //-----------------------------------------------------------------------------
+// RenderTimer
+//-----------------------------------------------------------------------------
+class RenderTimer : public wxTimer
+{
+public:
+    RenderTimer(void);
+    RenderTimer(MyFrame * f);
+    void Notify();
+    void start();
+private:
+    MyFrame * m_frame;
+};
+
+
+//-----------------------------------------------------------------------------
 // MyAuxilliaryFrame
 //-----------------------------------------------------------------------------
 
-class MyAuxilliaryFrame : public wxFrame
+class MyAuxilliaryFrame : public wxDialog
 {
 public:
-    MyAuxilliaryFrame(wxFrame *parent, const wxString& desc)
+    MyAuxilliaryFrame(wxWindow *parent, const wxString& desc)
     {
         Create(parent, desc); 
     }
+    ~MyAuxilliaryFrame();
+
     wxGrid *m_grid;
     int UpdateCellsUnits(void);
+#ifdef __WXGTK__
+    RenderTimer *m_renderAuxTimer;
+#endif
 
 private:
     wxStatusBar * m_statusBar;
@@ -128,16 +148,14 @@ private:
     int InitPopulateCells(void);
     int PopulateCellVals(void);
 
-    bool Create(wxFrame *parent, const wxString& desc)
+    bool Create(wxWindow *parent, const wxString& desc)
     {
-        if (!wxFrame::Create(parent, wxID_ANY, desc, 
+        if (!wxDialog::Create(parent, wxID_ANY, desc, 
                     wxDefaultPosition, wxDefaultSize,
                     wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)))
         {
             return false;
         }
-
-        SetIcon(wxICON(oww));
 
         m_grid = (wxGrid*)NULL;
         m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
@@ -156,6 +174,11 @@ private:
         m_grid->AutoSize();
         SetClientSize(m_grid->GetSize());
 
+#ifdef __WXGTK__
+        m_renderAuxTimer = new RenderTimer();
+        m_renderAuxTimer->start();
+#endif
+
         Show();
         return true;
     }
@@ -171,6 +194,14 @@ private:
 
     DECLARE_EVENT_TABLE()
 };
+
+MyAuxilliaryFrame::~MyAuxilliaryFrame()
+{
+#ifdef __WXGTK__
+    m_renderAuxTimer->Stop();
+    delete m_renderAuxTimer;
+#endif
+}
 
 
 
@@ -423,19 +454,6 @@ private:
 };
 
 
-//-----------------------------------------------------------------------------
-// RenderTimer
-//-----------------------------------------------------------------------------
-class RenderTimer : public wxTimer
-{
-public:
-    RenderTimer(MyFrame * canvas);
-    void Notify();
-    void start();
-private:
-    MyFrame * m_frame;
-};
-
 enum
 {
     Menu_SubMenu = 450,
@@ -512,7 +530,7 @@ private:
 // MyImageFrame
 //-----------------------------------------------------------------------------
 
-BEGIN_EVENT_TABLE(MyAuxilliaryFrame, wxFrame)
+BEGIN_EVENT_TABLE(MyAuxilliaryFrame, wxDialog)
     EVT_PAINT(MyAuxilliaryFrame::OnPaint)
 #if 0
     EVT_ERASE_BACKGROUND(MyAuxilliaryFrame::OnEraseBackground)
@@ -696,7 +714,9 @@ MyFrame::MyFrame()
     menuImage->Append(ID_SETUP, wxT("Setup"), "Edit Preferences");
     menuImage->Append(ID_DEVICES, "Devices", "Configure devices");
 #endif
+#ifndef __WXOSX_COCOA__
     menuImage->AppendSeparator();
+#endif
     menuImage->Append(ID_ABOUT, wxT("&About"));
     menuImage->Append(ID_ABOUT, wxT("&Help"));
     menuImage->AppendSeparator();
@@ -1295,14 +1315,24 @@ void OwwlReaderTimer::start()
 
 
 
+RenderTimer::RenderTimer() : wxTimer()
+{
+    RenderTimer::m_frame = NULL;
+}
 
-RenderTimer::RenderTimer(MyFrame* f) : wxTimer()
+
+RenderTimer::RenderTimer(MyFrame * f) : wxTimer()
 {
     RenderTimer::m_frame = f;
 }
 
 void RenderTimer::Notify()
 {
+    if(NULL == m_frame)
+    {
+        return;
+    }
+
     if(NULL != m_frame->m_auxilliaryFrame)
     {
         m_frame->m_auxilliaryFrame->m_grid->ForceRefresh();
@@ -1310,6 +1340,8 @@ void RenderTimer::Notify()
     }
     m_frame->m_canvas->Refresh();
     m_frame->m_canvas->Update();
+
+    return;
 }
 
 void RenderTimer::start()

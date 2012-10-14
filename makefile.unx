@@ -16,8 +16,8 @@
 #COVERITY=cov-build --dir cov-int 
 CC = $(COVERITY) gcc
 CCDEBUGFLAGS=-DOWWL_DEBUG
-OWWLVERS=0.5.9
-OWWLBASE=../oww_client-$(OWWLVERS)
+OWWLVERS=
+OWWLBASE=../owwl$(OWWLVERS)
 PROGRAM = Oww
 OBJECTS = wxgui.o owwl.o 
 
@@ -50,5 +50,5 @@ diffowwl:
 patchowwl:
 	patch < owwl-0.5.9.patch
 
-
-
+owwl-cvs:
+	cvs -z3 -d:pserver:anonymous@oww.cvs.sourceforge.net:/cvsroot/oww co -P owwl
