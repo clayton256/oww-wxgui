@@ -643,11 +643,12 @@ void MyFrame::changeUnits(int units)
 
     if(NULL != subMenu)
     {
-        subMenu->Check(Menu_SubMenu_Radio0, (m_units==OwwlUnit_Metric));
-        subMenu->Check(Menu_SubMenu_Radio1, (m_units==OwwlUnit_Imperial));
-        subMenu->Check(Menu_SubMenu_Radio2, (m_units==OwwlUnit_Alt1));
-        subMenu->Check(Menu_SubMenu_Radio3, (m_units==OwwlUnit_Alt2));
+        subMenu->Check(Menu_SubMenu_Radio0, (m_units==OwwlUnit_Metric)?true:false);
+        subMenu->Check(Menu_SubMenu_Radio1, (m_units==OwwlUnit_Imperial)?true:false);
+        subMenu->Check(Menu_SubMenu_Radio2, (m_units==OwwlUnit_Alt1)?true:false);
+        subMenu->Check(Menu_SubMenu_Radio3, (m_units==OwwlUnit_Alt2)?true:false);
     }
+
     return;
 }
 
@@ -694,7 +695,7 @@ MyFrame::MyFrame()
     m_statusbar = NULL;
     m_hostname = wxString(wxT("localhost"));
     m_port = 8899;
-    m_pollInterval = 5;
+    m_pollInterval = 10;
     m_s = -1;
     m_auxilliaryFrame = NULL;
     m_units = OwwlUnit_Imperial;
@@ -1081,10 +1082,10 @@ void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnMenuToggleUnits( wxCommandEvent &WXUNUSED(event) )
 {
-    int i;
+    //int i;
     if(NULL != m_connection)
     {
-        changeUnits((unit_choices[i]==OwwlUnit_Imperial) ? OwwlUnit_Metric : OwwlUnit_Imperial);
+        changeUnits((unit_choices[0]==OwwlUnit_Imperial) ? OwwlUnit_Metric : OwwlUnit_Imperial);
         //for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
         //{
         //    unit_choices[i] = (unit_choices[i]==OwwlUnit_Imperial)

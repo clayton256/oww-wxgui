@@ -1,3 +1,3 @@
-/* mondrian ICON "mondrian.ico" */
+AAAAAAAA ICON "./pixmaps/oww.ico"
 #include "wx/msw/wx.rc"
 
