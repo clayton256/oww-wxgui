@@ -1,3 +1,9 @@
+*.exe
+*.manifest
+*.obj
+*.ilk
+*.pdb
+*.res
 cov-int
 project.tgz
 .DS_Store
