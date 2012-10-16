@@ -13,7 +13,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 // For compilers that support precompilation, includes "wx/wx.h".
+#ifndef NOPCH
 #include <wx/wxprec.h>
+#endif
 
 #ifdef __BORLANDC__
 #pragma hdrstop
@@ -46,19 +48,30 @@
 #include <wx/bookctrl.h>
 
 // system includes
+#ifndef __WXMSW__
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <sys/time.h>
-
+#else
+#include <windows.h>
+#include <winsock.h>
+//#include <Ws2tcpip.h>
+#endif
 // app include
 #include "wxgui.h"
+
+#ifdef WIN32
+#define lround(num) ( (long)(num > 0 ? num + 0.5 : ceil(num - 0.5)) )
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 #define HAVE_GETTIMEOFDAY 1
+
 #include "owwl.h"
 
 /* Call a function for each data entry */
@@ -185,6 +198,7 @@ private:
 
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
+	wxPaintDC dc(this);
         PopulateCellVals();
 #ifndef __WXOSX_COCOA__
         m_grid->AutoSize();
@@ -354,6 +368,7 @@ public:
 
     wxTextCtrl        *serverText;
     wxSpinCtrl        *portSpin;
+    wxSpinCtrl        *pollSpin;
     wxCheckBox        *launchAtStart;
     wxChoice          *unitsChoice;
     wxCheckBox        *animateDisplay;
@@ -365,6 +380,7 @@ protected:
     enum {
         ID_SERVER_TEXT= 100,
         ID_PORT_SPIN,
+        ID_POLL_SPIN,
         ID_LAUNCH_CHECK,
         ID_UNITS_CHOICE,
         ID_ANIMATE_CHECK,
@@ -445,11 +461,12 @@ private:
 class OwwlReaderTimer : public wxTimer
 {
 public:
-    OwwlReaderTimer(MyFrame * canvas);
+    OwwlReaderTimer(MyFrame * canvas, unsigned int pollInt = 9);
     void Notify();
     void start();
 
 private:
+    unsigned int m_pollInterval;
     MyFrame * m_frame;
 };
 
@@ -478,6 +495,12 @@ class MyFrame: public wxFrame
 
 public:
     MyFrame();
+    ~MyFrame()
+    {
+#ifdef __WXMSW__
+        WSACleanup();
+#endif
+    };
 
     void OnAbout( wxCommandEvent &event );
     void OnAuxilliary( wxCommandEvent &event );
@@ -496,6 +519,7 @@ public:
     wxStatusBar       *m_statusbar;
     wxString           m_hostname;
     int                m_port;
+    unsigned int       m_pollInterval;
     SOCKET             m_s;
     owwl_conn         *m_connection;
     wxString           m_mapurl;
@@ -670,17 +694,50 @@ MyFrame::MyFrame()
     m_statusbar = NULL;
     m_hostname = wxString(wxT("localhost"));
     m_port = 8899;
+    m_pollInterval = 5;
     m_s = -1;
     m_auxilliaryFrame = NULL;
     m_units = OwwlUnit_Imperial;
     m_browser = 0;
     m_mapurl = wxEmptyString;
 
+#ifdef __WXMSW__
+    WORD wVersionRequested;
+    WSADATA wsaData;
+    int wsaerr;
+
+    // Using MAKEWORD macro, Winsock version request 2.2
+    wVersionRequested = MAKEWORD(2, 2);
+    wsaerr = WSAStartup(wVersionRequested, &wsaData);
+    if (wsaerr != 0)
+    {
+        /* Tell the user that we could not find a usable */
+        /* WinSock DLL.*/
+        (void)wxMessageBox(_("The Winsock dll not found!"),
+			       	"One wire Weather", wxICON_INFORMATION | wxOK );
+    }
+    /* Confirm that the WinSock DLL supports 2.2.*/
+    /* Note that if the DLL supports versions greater    */
+    /* than 2.2 in addition to 2.2, it will still return */
+    /* 2.2 in wVersion since that is the version we      */
+    /* requested.                                        */
+    if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2 )
+    {
+        /* Tell the user that we could not find a usable */
+        /* WinSock DLL.*/
+        (void)wxMessageBox(wxString::Format("The dll do not support the Winsock version %u.%u!", 
+		    LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)),
+		     "One wire Weather", wxICON_INFORMATION | wxOK );
+        WSACleanup();
+    }
+#endif
+
     SetIcon(wxICON(oww));
 
     m_config = wxConfigBase::Get();
     m_config->Read("server", &m_hostname);
     m_port = m_config->ReadLong("port", m_port);
+    m_pollInterval = m_config->ReadLong("pollInterval", m_pollInterval);
     m_units = m_config->Read("units", OwwlUnit_Imperial);
     changeUnits(m_units);
     m_browser = m_config->Read("browser", (long int)0);
@@ -752,9 +809,28 @@ int MyFrame::InitServerConnection(void)
         struct hostent  *host;
         struct sockaddr *address;
         struct sockaddr_in addr_in;
-
-        host = gethostbyname(m_hostname.c_str()) ;
-
+	
+	memset(&addr_in, sizeof(struct sockaddr_in), 0);
+	bool ipnumaddr = m_hostname.Matches("??.??.??.??");
+        if(false == ipnumaddr)
+        {
+            host = gethostbyname(m_hostname.c_str()) ;
+            if(NULL == host) 
+	    {
+                (void)wxMessageBox(wxString::Format("gethostbyname=%d", WSAGetLastError()),
+			       	"One wire Weather", wxICON_INFORMATION | wxOK );
+	    }
+	}
+	else
+	{    
+	    addr_in.sin_addr.s_addr = inet_addr(m_hostname.c_str());
+            host = gethostbyaddr((const char *)&addr_in, sizeof(struct sockaddr_in), AF_INET);
+            if(NULL == host) 
+	    {
+                (void)wxMessageBox(wxString::Format("gethostbyaddr=%d", WSAGetLastError()),
+			       	"One wire Weather", wxICON_INFORMATION | wxOK );
+	    }
+        }
         if (host)
         {
             addr_in.sin_family = AF_INET;
@@ -778,7 +854,7 @@ int MyFrame::InitServerConnection(void)
                             break;
                         case Owwl_Read_Disconnect:
                             wxLogStatus("Server disconnect");
-                            close(m_s);
+                            _close(m_s);
                             m_s = -1;
                             g_connection = m_connection = NULL;
                             retval = -1;
@@ -804,7 +880,7 @@ int MyFrame::InitServerConnection(void)
                 {
                     wxLogStatus("Error: connect failed %d", errno);
                     owwl_free(m_connection);
-                    close(m_s);
+                    _close(m_s);
                     m_s = -1;
                     g_connection = m_connection = NULL;
                     retval = -1;
@@ -846,7 +922,7 @@ void MyFrame::OnMenuSetUnits(wxCommandEvent& event)
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
     owwl_free(m_connection);
-    close(m_s);
+    _close(m_s);
     m_s = -1;
     g_connection = m_connection = NULL;
     m_renderTimer->Stop();
@@ -1034,6 +1110,7 @@ void MyFrame::OnPropertySheet(wxCommandEvent& event)
 
     dialog.serverText->SetValue(m_hostname);
     dialog.portSpin->SetValue(m_port);
+    dialog.pollSpin->SetValue(m_pollInterval);
     dialog.launchAtStart->SetValue(true);
     dialog.unitsChoice->SetSelection(unit_choices[0]);
     dialog.animateDisplay->SetValue(true);
@@ -1048,6 +1125,7 @@ void MyFrame::OnPropertySheet(wxCommandEvent& event)
         case wxID_OK:
             m_hostname = dialog.serverText->GetValue();
             m_port = dialog.portSpin->GetValue();
+            m_pollInterval = dialog.pollSpin->GetValue();
             m_launchAtStart = dialog.launchAtStart->GetValue();
             m_units = dialog.unitsChoice->GetSelection();
             m_animateDisplay = dialog.animateDisplay->GetValue();
@@ -1056,6 +1134,7 @@ void MyFrame::OnPropertySheet(wxCommandEvent& event)
             m_config = wxConfigBase::Get();
             m_config->Write("server", m_hostname);
             m_config->Write("port", m_port);
+	    m_config->Write("pollInterval", m_pollInterval);
             m_config->Write("launchStStart", m_launchAtStart);
             m_config->Write("units", m_units);
             changeUnits(m_units);
@@ -1168,11 +1247,14 @@ wxPanel* MySettingsDialog::CreateServerSettingsPage(wxWindow* parent)
     serverText = new wxTextCtrl(panel, ID_SERVER_TEXT, wxEmptyString, wxDefaultPosition, wxSize(300, -1), wxTE_LEFT);
     serverText->SetFocus();
     portSpin = new wxSpinCtrl(panel, ID_PORT_SPIN, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS, 7000, 65500, 8899);
+    pollSpin = new wxSpinCtrl(panel, ID_POLL_SPIN, wxEmptyString, wxDefaultPosition, wxSize(50, -1), wxSP_ARROW_KEYS, 1, 65, 5);
     launchAtStart = new wxCheckBox(panel, ID_LAUNCH_CHECK, _("Connect on startup"), wxDefaultPosition, wxDefaultSize);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Server:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Server:")), 0, wxALIGN_CENTER_HORIZONTAL, 5);
     itemSizer->Add(serverText, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Port : ")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Port : ")), 0, wxALIGN_CENTER_HORIZONTAL, 5);
     itemSizer->Add(portSpin, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Poll Interval (seconds) : ")), 0, wxALIGN_CENTER_HORIZONTAL, 5);
+    itemSizer->Add(pollSpin, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
     itemSizer->Add(launchAtStart, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     topSizer->Add(itemSizer, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
     panel->SetSizerAndFit(topSizer);
@@ -1270,8 +1352,9 @@ bool MyApp::OnInit()
 }
 
 
-OwwlReaderTimer::OwwlReaderTimer(MyFrame* f) : wxTimer()
+OwwlReaderTimer::OwwlReaderTimer(MyFrame* f, unsigned int pollInt) : wxTimer()
 {
+    m_pollInterval = pollInt * 1000;
     OwwlReaderTimer::m_frame = f;
 }
  
@@ -1290,7 +1373,7 @@ void OwwlReaderTimer::Notify()
                     break;
                 case Owwl_Read_Disconnect:
                     m_frame->SetStatusText("Server disconnect");
-                    close(m_frame->m_s);
+                    _close(m_frame->m_s);
                     m_frame->m_s = -1;
                     g_connection = m_frame->m_connection = NULL;
                     break;
@@ -1312,7 +1395,7 @@ void OwwlReaderTimer::Notify()
 
 void OwwlReaderTimer::start()
 {
-    wxTimer::Start(10000);
+    wxTimer::Start(m_pollInterval);
 }
 
 
@@ -1378,9 +1461,8 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
 #elif __WXOSX_COCOA__
     //wxString dir = "/Library/Application Support/Oww/pixmaps/";
     wxString dir = wxGetCwd() + "/pixmaps/";
-#elif __WXWIN__
-    wxString dir = wxGetOSDirectory() + "/Oww/pixmaps/";
-#error just guessing how Windows works, plz fix
+#elif __WXMSW__
+    wxString dir = /*wxGetOSDirectory() + */ "\\Program Files\\Oww\\pixmaps\\";
 #else
 #error define your platform
 #endif
@@ -1507,8 +1589,8 @@ void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
     int fontSz = 12;
 #elif __WXOSX_COCOA__
     int fontSz = 16;
-#elif __WXWIN__
-    int fontSz = ; //plz fix
+#elif __WXMSW__
+    int fontSz = 14;
 #else
 #error define your platform
 #endif
@@ -1535,8 +1617,8 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     int fontSz = 13;
 #elif __WXOSX_COCOA__
     int fontSz = 16;
-#elif __WXWIN__
-    int fontSz = ; //plz fix
+#elif __WXMSW__
+    int fontSz = 12;
 #else
 #error define your platform
 #endif
