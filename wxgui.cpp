@@ -696,7 +696,7 @@ MyFrame::MyFrame()
     : wxFrame( (wxFrame *)NULL, wxID_ANY, wxT("Oww"), 
                 wxPoint(20, 20), 
 #ifdef __WXGTK__
-                wxSize(474, 441+40),
+                wxSize(474, 441/*+40*/),
 #else
                 wxSize(474, 441),
 #endif
@@ -940,11 +940,11 @@ int MyFrame::InitServerConnection(void)
 
 void MyFrame::OnMenuSetUnits(wxCommandEvent& event)
 {
-    int unit = event.GetId() - Menu_SubMenu_Radio0;
+    m_units = event.GetId() - Menu_SubMenu_Radio0;
 
     if(NULL != m_connection)
     {
-        changeUnits(unit);
+        changeUnits(m_units);
     }
     if(NULL != m_auxilliaryFrame)
     {
