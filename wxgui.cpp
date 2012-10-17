@@ -1173,7 +1173,7 @@ void MyFrame::OnPropertySheet(wxCommandEvent& event)
             m_config->Write("launchStStart", m_launchAtStart);
             m_config->Write("units", m_units);
             changeUnits(m_units);
-            m_config->Write("anumateDisplay", m_animateDisplay);
+            m_config->Write("animateDisplay", m_animateDisplay);
             m_config->Write("browser", m_browser);
             m_config->Write("mapurl", m_mapurl);
             //(void)wxMessageBox("OK", "One wire Weather", wxICON_INFORMATION | wxOK );
