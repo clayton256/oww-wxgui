@@ -810,6 +810,10 @@ MyFrame::MyFrame()
     GetClientSize(&w, &h);
     w = m_config->Read(_T("w"), w);
     h = m_config->Read(_T("h"), h);
+    if(0 > w || 0 > h)
+    {
+        w = h = 10;
+    }
     Move(x, y);
 
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(474,441) );
