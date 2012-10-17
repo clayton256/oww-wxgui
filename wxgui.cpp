@@ -52,6 +52,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <sys/time.h>
 #else
@@ -198,7 +199,7 @@ private:
 
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
-	wxPaintDC dc(this);
+        wxPaintDC dc(this);
         PopulateCellVals();
 #ifndef __WXOSX_COCOA__
         m_grid->AutoSize();
@@ -495,12 +496,7 @@ class MyFrame: public wxFrame
 
 public:
     MyFrame();
-    ~MyFrame()
-    {
-#ifdef __WXMSW__
-        WSACleanup();
-#endif
-    };
+    ~MyFrame();
 
     void OnAbout( wxCommandEvent &event );
     void OnAuxilliary( wxCommandEvent &event );
@@ -677,6 +673,25 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 END_EVENT_TABLE()
 
 
+MyFrame::~MyFrame()
+{
+    {
+#ifdef __WXMSW__
+        WSACleanup();
+#endif
+    };
+    // save the frame position
+    int x, y, w, h;
+    GetClientSize(&w, &h);
+    GetPosition(&x, &y);
+    m_config->Write(_T("/MainFrame/x"), (long) x);
+    m_config->Write(_T("/MainFrame/y"), (long) y);
+    m_config->Write(_T("/MainFrame/w"), (long) w);
+    m_config->Write(_T("/MainFrame/h"), (long) h);
+}
+
+
+
 MyFrame::MyFrame()
     : wxFrame( (wxFrame *)NULL, wxID_ANY, wxT("Oww"), 
                 wxPoint(20, 20), 
@@ -785,7 +800,17 @@ MyFrame::MyFrame()
     m_statusbar = CreateStatusBar(2);
     int widths[] = { -1, 200 };
     SetStatusWidths( 2, widths );
-    Refresh();
+    //Refresh();
+
+    m_config->SetPath(_T("/MainFrame"));
+    // restore frame position and size
+    int x = m_config->Read(_T("x"), 50);
+    int y = m_config->Read(_T("y"), 50);
+    int w, h;
+    GetClientSize(&w, &h);
+    w = m_config->Read(_T("w"), w);
+    h = m_config->Read(_T("h"), h);
+    Move(x, y);
 
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(474,441) );
     Show();
@@ -800,8 +825,17 @@ MyFrame::MyFrame()
     {
         SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
     }
+
     return;
 }
+
+#ifdef __WXMSW__
+#define sock_error WSAGetLastError()
+#define sock_close _close
+#else
+#define sock_error h_errno
+#define sock_close close
+#endif
 
 int MyFrame::InitServerConnection(void)
 {
@@ -810,27 +844,27 @@ int MyFrame::InitServerConnection(void)
         struct hostent  *host;
         struct sockaddr *address;
         struct sockaddr_in addr_in;
-	
-	memset(&addr_in, sizeof(struct sockaddr_in), 0);
-	bool ipnumaddr = m_hostname.Matches("??.??.??.??");
+
+        memset(&addr_in, sizeof(struct sockaddr_in), 0);
+        bool ipnumaddr = m_hostname.Matches("??.??.??.??");
         if(false == ipnumaddr)
         {
             host = gethostbyname(m_hostname.c_str()) ;
             if(NULL == host) 
-	    {
-                (void)wxMessageBox(wxString::Format("gethostbyname=%d", WSAGetLastError()),
-			       	"One wire Weather", wxICON_INFORMATION | wxOK );
-	    }
-	}
-	else
-	{    
-	    addr_in.sin_addr.s_addr = inet_addr(m_hostname.c_str());
+            {
+                (void)wxMessageBox(wxString::Format("gethostbyname=%d", sock_error),
+                                                     "One wire Weather", wxICON_INFORMATION | wxOK );
+            }
+        }
+        else
+        {
+            addr_in.sin_addr.s_addr = inet_addr(m_hostname.c_str());
             host = gethostbyaddr((const char *)&addr_in, sizeof(struct sockaddr_in), AF_INET);
             if(NULL == host) 
-	    {
-                (void)wxMessageBox(wxString::Format("gethostbyaddr=%d", WSAGetLastError()),
-			       	"One wire Weather", wxICON_INFORMATION | wxOK );
-	    }
+            {
+                (void)wxMessageBox(wxString::Format("gethostbyaddr=%d", sock_error),
+                                                      "One wire Weather", wxICON_INFORMATION | wxOK );
+            }
         }
         if (host)
         {
@@ -855,7 +889,7 @@ int MyFrame::InitServerConnection(void)
                             break;
                         case Owwl_Read_Disconnect:
                             wxLogStatus("Server disconnect");
-                            _close(m_s);
+                            sock_close(m_s);
                             m_s = -1;
                             g_connection = m_connection = NULL;
                             retval = -1;
@@ -881,7 +915,7 @@ int MyFrame::InitServerConnection(void)
                 {
                     wxLogStatus("Error: connect failed %d", errno);
                     owwl_free(m_connection);
-                    _close(m_s);
+                    sock_close(m_s);
                     m_s = -1;
                     g_connection = m_connection = NULL;
                     retval = -1;
@@ -923,7 +957,7 @@ void MyFrame::OnMenuSetUnits(wxCommandEvent& event)
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
     owwl_free(m_connection);
-    _close(m_s);
+    sock_close(m_s);
     m_s = -1;
     g_connection = m_connection = NULL;
     m_renderTimer->Stop();
@@ -1374,7 +1408,7 @@ void OwwlReaderTimer::Notify()
                     break;
                 case Owwl_Read_Disconnect:
                     m_frame->SetStatusText("Server disconnect");
-                    _close(m_frame->m_s);
+                    sock_close(m_frame->m_s);
                     m_frame->m_s = -1;
                     g_connection = m_frame->m_connection = NULL;
                     break;
@@ -1652,7 +1686,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 gust = 99.9;
                 bearing = 180.0;
 #else
-#if 1
+#if 0
                 speed =   od->device_data.wind.speed;
                 gust =    od->device_data.wind.gust;
                 bearing = od->device_data.wind.bearing;
