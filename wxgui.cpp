@@ -759,7 +759,7 @@ MyFrame::MyFrame()
     m_browser = m_config->Read("browser", (long int)0);
     m_config->Read("mapurl", &m_mapurl);
     m_config->Read("launchStStart", &m_launchAtStart);
-    m_config->Read("anumateDisplay", &m_animateDisplay);
+    m_config->Read("animateDisplay", &m_animateDisplay);
 
     wxMenuBar *menu_bar = new wxMenuBar();
     menuImage = new wxMenu;
