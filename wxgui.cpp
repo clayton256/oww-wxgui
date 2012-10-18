@@ -94,6 +94,22 @@ owwl_foreach_jmc(owwl_conn *conn, owwl_func func, void *user_data)
 } /*extern "C"*/
 #endif
 
+enum
+{
+    ID_QUIT  = wxID_EXIT,
+    ID_ABOUT = wxID_ABOUT,
+    ID_MAIN_FRAME = 100,
+    ID_AUX_FRAME,
+    ID_AUXILLIARY = 200,
+    ID_MAP,
+    ID_MESSAGES,
+    ID_SETUP,
+    ID_DEVICES
+};
+
+class MyCanvas;
+class MyAuxilliaryFrame;
+
 wxString g_VersionStr = VERSIONSTR;
 owwl_conn *g_connection;
 
@@ -128,13 +144,69 @@ int unit_choices[OWWL_UNIT_CLASS_LIMIT];
 class RenderTimer : public wxTimer
 {
 public:
-    RenderTimer(void);
-    RenderTimer(MyFrame * f);
+    RenderTimer(MyCanvas* canvas);
     void Notify();
     void start();
 private:
+    MyCanvas * m_canvas;
+    RenderTimer *m_renderTimer;
+};
+
+//-----------------------------------------------------------------------------
+// MyCanvas
+//-----------------------------------------------------------------------------
+
+class MyCanvas: public wxPanel
+{
+public:
+    MyCanvas( wxWindow *parent, wxWindowID, const wxPoint &pos, 
+              const wxSize &size );
+    ~MyCanvas();
+
+    void OnPaint( wxPaintEvent &event );
+    void CreateAntiAliasedBitmap();
+    void DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt );
+
+    wxBitmap  body_jpg;
+    wxBitmap  bottom1_jpg;
+    wxBitmap  bottom2_jpg;
+    wxBitmap  bottom3_jpg;
+    wxBitmap  bottom4_jpg;
+    wxBitmap  bottom5_jpg;
+    wxBitmap  bottom6_jpg;
+    wxBitmap  bottom7_jpg;
+    wxBitmap  bottom8_jpg;
+    wxBitmap  rh_png;
+    wxBitmap  top1_jpg;
+    wxBitmap  top2_jpg;
+    wxBitmap  top3_jpg;
+
+    MyFrame *m_frame;
+    int xH, yH;
+    RenderTimer *m_renderTimer;
+    MyAuxilliaryFrame *m_auxilliaryFrame;
+
+private:
+    int m_counter;
+
+    DECLARE_EVENT_TABLE()
+};
+
+//-----------------------------------------------------------------------------
+// OwwlReaderTimer
+//-----------------------------------------------------------------------------
+class OwwlReaderTimer : public wxTimer
+{
+public:
+    OwwlReaderTimer(MyFrame * canvas, unsigned int pollInt = 9);
+    void Notify();
+    void start();
+
+private:
+    unsigned int m_pollInterval;
     MyFrame * m_frame;
 };
+
 
 
 //-----------------------------------------------------------------------------
@@ -144,34 +216,38 @@ private:
 class MyAuxilliaryFrame : public wxDialog
 {
 public:
-    MyAuxilliaryFrame(wxWindow *parent, const wxString& desc)
+    MyAuxilliaryFrame(wxWindow *parent, MyCanvas * canvas, const wxString& desc)
     {
-        Create(parent, desc); 
+        m_grid = (wxGrid*)NULL;
+        m_statusBar = (wxStatusBar*)NULL;
+        Create(parent, canvas, desc); 
     }
     ~MyAuxilliaryFrame();
 
-    wxGrid *m_grid;
     int UpdateCellsUnits(void);
-#ifdef __WXGTK__
-    RenderTimer *m_renderAuxTimer;
-#endif
-
+    wxGrid *m_grid;
 private:
+    MyCanvas *m_canvas;
     wxStatusBar * m_statusBar;
     enum gridColumns {gridColName, gridColData, gridColValue, gridColUnit};
     int InitPopulateCells(void);
     int PopulateCellVals(void);
 
-    bool Create(wxWindow *parent, const wxString& desc)
+    bool Create(wxWindow *parent, MyCanvas * canvas, const wxString& desc)
     {
-        if (!wxDialog::Create(parent, wxID_ANY, desc, 
+        if (!wxDialog::Create(parent, ID_AUX_FRAME, desc, 
                     wxDefaultPosition, wxDefaultSize,
-                    wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)))
+                    wxDEFAULT_DIALOG_STYLE))
+                    //wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)))
         {
             return false;
         }
-
-        m_grid = (wxGrid*)NULL;
+        m_canvas = canvas;
+#if 0
+        m_statusBar = wxFrame::CreateStatusBar(2);
+        int widths[] = { -1, 20 };
+        m_statusBar->SetStatusWidths( 2, widths );
+#endif
         m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
@@ -183,28 +259,38 @@ private:
         m_grid->SetLabelValue(wxHORIZONTAL, "  Unit  ", gridColUnit);
         InitPopulateCells();
         UpdateCellsUnits();
+        PopulateCellVals();
         m_grid->SetRowLabelSize(wxGRID_AUTOSIZE);
         m_grid->SetColLabelSize(wxGRID_AUTOSIZE);
         m_grid->AutoSize();
-        SetClientSize(m_grid->GetSize());
 
-#ifdef __WXGTK__
-        m_renderAuxTimer = new RenderTimer();
-        m_renderAuxTimer->start();
-#endif
+    {
+    wxPoint p;
+    wxSize gSz = m_grid->GetSize();
+    p.x = 0;
+    p.y += gSz.GetHeight();
+    wxSize bSz = wxDefaultSize;
+    bSz.SetWidth(gSz.GetWidth());
+    wxButton *b = new wxButton(this, wxID_OK, _("OK"), p, bSz);
+    bSz = b->GetDefaultSize();
+        gSz.IncBy(0, bSz.GetHeight());
+        SetClientSize(gSz);
+    }
 
-        Show();
         return true;
     }
 
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
-        wxPaintDC dc(this);
+//    (void)wxMessageBox(_("Got Here!"),
+//                               "One wire Weather", wxICON_INFORMATION | wxOK );
+
         PopulateCellVals();
 #ifndef __WXOSX_COCOA__
-        m_grid->AutoSize();
+        //m_grid->AutoSize();
 #endif
-        SetClientSize(m_grid->GetSize());
+        //SetClientSize(m_grid->GetSize());
+        wxLogStatus("Got Here");
     }
 
     DECLARE_EVENT_TABLE()
@@ -212,16 +298,13 @@ private:
 
 MyAuxilliaryFrame::~MyAuxilliaryFrame()
 {
-#ifdef __WXGTK__
-    m_renderAuxTimer->Stop();
-    delete m_renderAuxTimer;
-#endif
 }
 
 
 
 int MyAuxilliaryFrame::InitPopulateCells()
 {
+    if(NULL == m_grid) return 1;
     owwl_conn *conn = g_connection;
     owwl_data *data = NULL;
     if(NULL != conn)
@@ -269,6 +352,7 @@ int MyAuxilliaryFrame::InitPopulateCells()
 
 int MyAuxilliaryFrame::UpdateCellsUnits()
 {
+    if(NULL == m_grid) return 1;
     owwl_conn *conn = g_connection;
     owwl_data *data = NULL;
     if(NULL != conn)
@@ -306,6 +390,7 @@ int MyAuxilliaryFrame::UpdateCellsUnits()
 
 int MyAuxilliaryFrame::PopulateCellVals(void)
 {
+    if(NULL == m_grid) return 1;
     owwl_conn *conn = g_connection;
     owwl_data *data = NULL;
     if(NULL != conn)
@@ -379,7 +464,7 @@ public:
 
 protected:
     enum {
-        ID_SERVER_TEXT= 100,
+        ID_SERVER_TEXT= 200,
         ID_PORT_SPIN,
         ID_POLL_SPIN,
         ID_LAUNCH_CHECK,
@@ -418,60 +503,6 @@ private:
     DECLARE_EVENT_TABLE()
 };
 
-//-----------------------------------------------------------------------------
-// MyCanvas
-//-----------------------------------------------------------------------------
-
-class MyCanvas: public wxPanel
-{
-public:
-    MyCanvas( wxWindow *parent, wxWindowID, const wxPoint &pos, 
-              const wxSize &size );
-    ~MyCanvas();
-
-    void OnPaint( wxPaintEvent &event );
-    void CreateAntiAliasedBitmap();
-    void DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt );
-
-    wxBitmap  body_jpg;
-    wxBitmap  bottom1_jpg;
-    wxBitmap  bottom2_jpg;
-    wxBitmap  bottom3_jpg;
-    wxBitmap  bottom4_jpg;
-    wxBitmap  bottom5_jpg;
-    wxBitmap  bottom6_jpg;
-    wxBitmap  bottom7_jpg;
-    wxBitmap  bottom8_jpg;
-    wxBitmap  rh_png;
-    wxBitmap  top1_jpg;
-    wxBitmap  top2_jpg;
-    wxBitmap  top3_jpg;
-
-    MyFrame *m_frame;
-    int xH, yH;
-
-private:
-    int m_counter;
-
-    DECLARE_EVENT_TABLE()
-};
-
-//-----------------------------------------------------------------------------
-// OwwlReaderTimer
-//-----------------------------------------------------------------------------
-class OwwlReaderTimer : public wxTimer
-{
-public:
-    OwwlReaderTimer(MyFrame * canvas, unsigned int pollInt = 9);
-    void Notify();
-    void start();
-
-private:
-    unsigned int m_pollInterval;
-    MyFrame * m_frame;
-};
-
-
 enum
 {
     Menu_SubMenu = 450,
@@ -491,7 +522,6 @@ enum
 class MyFrame: public wxFrame
 {
     OwwlReaderTimer *m_readerTimer;
-    RenderTimer *m_renderTimer;
     wxConfigBase *m_config;
 
 public:
@@ -511,7 +541,6 @@ public:
     wxMenu            *menuImage;
     wxMenu            *subMenu;
     MyCanvas          *m_canvas;
-    MyAuxilliaryFrame *m_auxilliaryFrame;
     wxStatusBar       *m_statusbar;
     wxString           m_hostname;
     int                m_port;
@@ -561,17 +590,6 @@ END_EVENT_TABLE()
 //-----------------------------------------------------------------------------
 // MyFrame
 //-----------------------------------------------------------------------------
-
-enum
-{
-    ID_QUIT  = wxID_EXIT,
-    ID_ABOUT = wxID_ABOUT,
-    ID_AUXILLIARY = 100,
-    ID_MAP,
-    ID_MESSAGES,
-    ID_SETUP,
-    ID_DEVICES
-};
 
 #if 0
 char g_tempStr[50];
@@ -693,13 +711,9 @@ MyFrame::~MyFrame()
 
 
 MyFrame::MyFrame()
-    : wxFrame( (wxFrame *)NULL, wxID_ANY, wxT("Oww"), 
+    : wxFrame( (wxFrame *)NULL, ID_MAIN_FRAME, wxT("Oww"), 
                 wxPoint(20, 20), 
-#ifdef __WXGTK__
-                wxSize(474, 441/*+40*/),
-#else
                 wxSize(474, 441),
-#endif
                 wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)
               )
 {
@@ -712,7 +726,6 @@ MyFrame::MyFrame()
     m_port = 8899;
     m_pollInterval = 10;
     m_s = -1;
-    m_auxilliaryFrame = NULL;
     m_units = OwwlUnit_Imperial;
     m_browser = 0;
     m_mapurl = wxEmptyString;
@@ -730,7 +743,7 @@ MyFrame::MyFrame()
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
         (void)wxMessageBox(_("The Winsock dll not found!"),
-			       	"One wire Weather", wxICON_INFORMATION | wxOK );
+                               "One wire Weather", wxICON_INFORMATION | wxOK );
     }
     /* Confirm that the WinSock DLL supports 2.2.*/
     /* Note that if the DLL supports versions greater    */
@@ -742,8 +755,8 @@ MyFrame::MyFrame()
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
         (void)wxMessageBox(wxString::Format("The dll do not support the Winsock version %u.%u!", 
-		    LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)),
-		     "One wire Weather", wxICON_INFORMATION | wxOK );
+                                               LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)),
+                                               "One wire Weather", wxICON_INFORMATION | wxOK );
         WSACleanup();
     }
 #endif
@@ -815,8 +828,8 @@ MyFrame::MyFrame()
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(474,441) );
     Show();
 
-    m_renderTimer = new RenderTimer(this);
-    m_renderTimer->start();
+    m_canvas->m_renderTimer = new RenderTimer(m_canvas);
+    m_canvas->m_renderTimer->start();
 
     m_readerTimer = new OwwlReaderTimer(this);
     m_readerTimer->start();
@@ -826,6 +839,8 @@ MyFrame::MyFrame()
         SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
     }
 
+    m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, "Auxilliary Data");
+    m_canvas->m_auxilliaryFrame->Show();
     return;
 }
 
@@ -946,9 +961,9 @@ void MyFrame::OnMenuSetUnits(wxCommandEvent& event)
     {
         changeUnits(m_units);
     }
-    if(NULL != m_auxilliaryFrame)
+    if(NULL != m_canvas->m_auxilliaryFrame)
     {
-        m_auxilliaryFrame->UpdateCellsUnits();
+        m_canvas->m_auxilliaryFrame->UpdateCellsUnits();
     }
     return;
 }
@@ -956,12 +971,14 @@ void MyFrame::OnMenuSetUnits(wxCommandEvent& event)
 
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
 {
+    m_readerTimer->Stop();
+    delete m_readerTimer;
+
     owwl_free(m_connection);
     sock_close(m_s);
     m_s = -1;
     g_connection = m_connection = NULL;
-    m_renderTimer->Stop();
-    delete m_renderTimer;
+    
     Close( true );
 }
 
@@ -1017,7 +1034,7 @@ public:
     }
 
 private:
-    wxGrid m_grid;
+    wxGrid *m_grid;
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
         wxPaintDC dc(this);
@@ -1092,7 +1109,8 @@ void MyFrame::OnSetup( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
-    m_auxilliaryFrame = new MyAuxilliaryFrame(this, "Auxilliary Data");
+    m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, "Auxilliary Data");
+    m_canvas->m_auxilliaryFrame->Show();
 }
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
@@ -1126,9 +1144,9 @@ void MyFrame::OnMenuToggleUnits( wxCommandEvent &WXUNUSED(event) )
         //                                   ? OwwlUnit_Metric : OwwlUnit_Imperial;
         //}
     }
-    if(NULL != m_auxilliaryFrame)
+    if(NULL != m_canvas->m_auxilliaryFrame)
     {
-        m_auxilliaryFrame->UpdateCellsUnits();
+        m_canvas->m_auxilliaryFrame->UpdateCellsUnits();
     }
 }
 
@@ -1436,31 +1454,21 @@ void OwwlReaderTimer::start()
 
 
 
-RenderTimer::RenderTimer() : wxTimer()
+RenderTimer::RenderTimer(MyCanvas *canvas) : wxTimer()
 {
-    RenderTimer::m_frame = NULL;
+    RenderTimer::m_canvas = canvas;
 }
 
-
-RenderTimer::RenderTimer(MyFrame * f) : wxTimer()
-{
-    RenderTimer::m_frame = f;
-}
 
 void RenderTimer::Notify()
 {
-    if(NULL == m_frame)
-    {
-        return;
-    }
+    if(NULL == m_canvas) return;
 
-    if(NULL != m_frame->m_auxilliaryFrame)
-    {
-        m_frame->m_auxilliaryFrame->m_grid->ForceRefresh();
-        m_frame->m_auxilliaryFrame->Update();
-    }
-    m_frame->m_canvas->Refresh();
-    m_frame->m_canvas->Update();
+    m_canvas->Refresh();
+    if(NULL == m_canvas->m_auxilliaryFrame) return;
+    if(NULL == m_canvas->m_auxilliaryFrame->m_grid) return;
+    m_canvas->m_auxilliaryFrame->Refresh();
+    m_canvas->m_auxilliaryFrame->m_grid->ForceRefresh();
 
     return;
 }
@@ -1489,7 +1497,8 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
     m_frame = (MyFrame *)parent;
     wxClientDC dc( this );
     PrepareDC( dc );
- 
+    m_auxilliaryFrame = NULL;
+
     // try to find the images in the platform specific location
 #ifdef __WXGTK__
     wxString dir = "/usr/local/share/oww/pixmaps/";
@@ -1614,11 +1623,14 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
 
 MyCanvas::~MyCanvas()
 {
+    m_renderTimer->Stop();
+    delete m_renderTimer;
 }
 
 void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
 {
     wxPaintDC dc( this );
+    //DoPrepareDC(dc);
     PrepareDC( dc );
 #ifdef __WXGTK__
     int fontSz = 12;
@@ -1646,6 +1658,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 {
     wxPaintDC dc( this );
     PrepareDC( dc );
+    //DoPrepareDC( dc );
     owwl_data *od = NULL;
     int unit;
 #ifdef __WXGTK__
