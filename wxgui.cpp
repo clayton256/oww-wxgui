@@ -552,7 +552,7 @@ public:
     int                m_units;
     bool               m_animateDisplay;
     int                m_browser;
-
+    bool               m_restoreAuxFrame;
 private:
     void OnMenuSetUnits(wxCommandEvent &event);
     int InitServerConnection(void);
@@ -729,7 +729,7 @@ MyFrame::MyFrame()
     m_units = OwwlUnit_Imperial;
     m_browser = 0;
     m_mapurl = wxEmptyString;
-
+    m_restoreAuxFrame = false;
 #ifdef __WXMSW__
     WORD wVersionRequested;
     WSADATA wsaData;
@@ -842,9 +842,11 @@ MyFrame::MyFrame()
     {
         SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
     }
-
-    m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, "Auxilliary Data");
-    m_canvas->m_auxilliaryFrame->Show();
+    if(true == m_restoreAuxFrame)
+    {
+        m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, "Auxilliary Data");
+        m_canvas->m_auxilliaryFrame->Show();
+    }
     return;
 }
 
@@ -1113,6 +1115,7 @@ void MyFrame::OnSetup( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
+    m_restoreAuxFrame = true;
     m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, "Auxilliary Data");
     m_canvas->m_auxilliaryFrame->Show();
 }
@@ -1306,11 +1309,11 @@ wxPanel* MySettingsDialog::CreateServerSettingsPage(wxWindow* parent)
     portSpin = new wxSpinCtrl(panel, ID_PORT_SPIN, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS, 7000, 65500, 8899);
     pollSpin = new wxSpinCtrl(panel, ID_POLL_SPIN, wxEmptyString, wxDefaultPosition, wxSize(50, -1), wxSP_ARROW_KEYS, 1, 65, 5);
     launchAtStart = new wxCheckBox(panel, ID_LAUNCH_CHECK, _("Connect on startup"), wxDefaultPosition, wxDefaultSize);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Server:")), 0, wxALIGN_CENTER_HORIZONTAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Server:")), 0, wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(serverText, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Port : ")), 0, wxALIGN_CENTER_HORIZONTAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Port : ")), 0, wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(portSpin, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Poll Interval (seconds) : ")), 0, wxALIGN_CENTER_HORIZONTAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Poll Interval (seconds) : ")), 0, wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(pollSpin, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
     itemSizer->Add(launchAtStart, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     topSizer->Add(itemSizer, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
