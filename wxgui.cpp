@@ -576,6 +576,8 @@ public:
 #endif
     void OnQuit( wxCommandEvent &event );
 
+    owwl_buffer buff;
+    
     wxLogWindow       *m_logWindow;
     wxMenu            *menuImage;
     wxMenu            *subMenu;
@@ -764,6 +766,7 @@ MyFrame::MyFrame()
     m_pollInterval = 10;
     m_s = -1;
     m_units = OwwlUnit_Imperial;
+    buff = Owwl_Buffer_Init;
     m_browser = 0;
     m_mapurl = wxEmptyString;
     m_restoreAuxFrame = false;
@@ -934,7 +937,7 @@ int MyFrame::InitServerConnection(void)
                         case Owwl_Read_Error:
                             wxLogVerbose("Protocol error");
                             retval = -1;
-                            break;
+                            // drop thru to disconnect break;
                         case Owwl_Read_Disconnect:
                             wxLogVerbose("Server disconnect");
                             sock_close(m_s);
@@ -944,10 +947,16 @@ int MyFrame::InitServerConnection(void)
                             break;
                         case Owwl_Read_Again:
                             wxLogVerbose("Read again");
+                            owwl_tx_poll_servers(m_connection);
+                            if(-1==retval)wxLogVerbose("owwl_tx_poll_servers failed");
                             retval = -1;
                             break;
                         case Owwl_Read_Read_And_Decoded:
                             wxLogVerbose("Read & Decode");
+                            retval = owwl_tx_build(m_connection, OWW_TRX_MSG_WSDATA, &(buff));
+                            if(-1==retval)wxLogVerbose("owwl_tx_build failed");
+                            retval = owwl_tx(m_connection, &(buff));
+                            if(-1==retval)wxLogVerbose("owwl_tx failed");
                             break;
                         default:
                             retval = -1;
@@ -956,7 +965,7 @@ int MyFrame::InitServerConnection(void)
                     }
                     if(m_connection)
                     {
-                        owwl_foreach(m_connection, print_data, NULL);
+                        //owwl_foreach(m_connection, print_data, NULL);
                     }
                 }
                 else
@@ -1444,30 +1453,39 @@ void OwwlReaderTimer::Notify()
             {
                 case Owwl_Read_Error:
                     wxLogVerbose("Protocol Error");
-                    //m_frame->SetStatusText("Protocol error");
-                    break;
+                    // drop thru to disconnect break;
                 case Owwl_Read_Disconnect:
                     wxLogVerbose("Server Disconnect");
                     m_frame->SetStatusText("Server disconnect");
+                    /* Try to reconnect */
+                    /* but for now close up */
                     sock_close(m_frame->m_s);
                     m_frame->m_s = -1;
                     g_connection = m_frame->m_connection = NULL;
                     break;
                 case Owwl_Read_Again:
                     wxLogVerbose("Read Again");
-                    //m_frame->SetStatusText("Read again");
+                    retval = owwl_tx_poll_servers(m_frame->m_connection);
+                    if(-1==retval)wxLogVerbose("owwl_tx_poll_servers failed");
                     break;
                 case Owwl_Read_Read_And_Decoded:
                     wxLogVerbose("Read And Decode");
-                    //m_frame->SetStatusText("                  ");
+                    retval = owwl_tx_build(m_frame->m_connection, OWW_TRX_MSG_WSDATA, 
+                                           &(m_frame->buff));
+                    if(-1==retval)wxLogVerbose("owwl_tx_build failed");
+                    retval = owwl_tx(m_frame->m_connection, &(m_frame->buff));
+                    if(-1==retval)wxLogVerbose("owwl_tx failed");
                     break;
                 default:
                     wxLogVerbose("Read Default");
-                    //m_frame->SetStatusText("Read default");
                     break;
-            }
+            } //switch(owwl_read(m_frame->m_connection))
+        } //if(NULL != m_frame->m_connection)
+        else
+        {
+            // try to reconnect... someday...
         }
-    }
+    } //if(NULL != m_frame)
 #endif
     return;
 } //OwwlReader::Notify
