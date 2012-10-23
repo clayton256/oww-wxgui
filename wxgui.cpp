@@ -26,6 +26,8 @@
 #endif
 
 // wxWidget includes
+#include <wx/log.h>
+#include <wx/apptrait.h>
 #include <wx/image.h>
 #include <wx/imaglist.h>
 #include <wx/artprov.h>
@@ -55,17 +57,20 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <sys/time.h>
+#define sock_error h_errno
+#define sock_close close
 #else
 #include <windows.h>
 #include <winsock.h>
 //#include <Ws2tcpip.h>
+#define lround(num) ( (long)(num > 0 ? num + 0.5 : ceil(num - 0.5)) )
+#define sock_error WSAGetLastError()
+#define sock_close _close
 #endif
+
 // app include
 #include "wxgui.h"
 
-#ifdef WIN32
-#define lround(num) ( (long)(num > 0 ? num + 0.5 : ceil(num - 0.5)) )
-#endif
 
 
 #ifdef __cplusplus
@@ -102,6 +107,7 @@ enum
     ID_AUX_FRAME,
     ID_AUXILLIARY = 200,
     ID_MAP,
+    ID_TOGGLEUNITS,
     ID_MESSAGES,
     ID_SETUP,
     ID_DEVICES
@@ -124,6 +130,43 @@ owwl_conn *g_connection;
 // declarations
 // ============================================================================
 
+
+// Custom application traits class which we use to override the default log
+// target creation
+class MyAppTraits : public wxGUIAppTraits
+{
+public:
+    virtual wxLog *CreateLogTarget();
+};
+
+
+
+// ----------------------------------------------------------------------------
+// custom log target
+// ----------------------------------------------------------------------------
+
+class MyLogGui : public wxLogGui
+{
+private:
+    virtual void DoShowSingleLogMessage(const wxString& message,
+                                        const wxString& title,
+                                        int style)
+    {
+        wxMessageDialog dlg(NULL, message, title,
+                            wxOK | wxCANCEL | wxCANCEL_DEFAULT | style);
+        dlg.SetOKCancelLabels(wxID_COPY, wxID_OK);
+        dlg.SetExtendedMessage("Note that this is a custom log dialog.");
+        dlg.ShowModal();
+    }
+};
+
+wxLog *MyAppTraits::CreateLogTarget()
+{
+    return new MyLogGui;
+}
+
+
+
 //-----------------------------------------------------------------------------
 // MyApp
 //-----------------------------------------------------------------------------
@@ -132,6 +175,11 @@ class MyApp: public wxApp
 {
 public:
     virtual bool OnInit();
+    wxString GetCmdLine();
+    void LogPlatform();
+
+protected:
+    virtual wxAppTraits *CreateTraits() { return new MyAppTraits; }
 };
 
 
@@ -152,10 +200,11 @@ private:
     RenderTimer *m_renderTimer;
 };
 
+
+
 //-----------------------------------------------------------------------------
 // MyCanvas
 //-----------------------------------------------------------------------------
-
 class MyCanvas: public wxPanel
 {
 public:
@@ -192,6 +241,8 @@ private:
     DECLARE_EVENT_TABLE()
 };
 
+
+
 //-----------------------------------------------------------------------------
 // OwwlReaderTimer
 //-----------------------------------------------------------------------------
@@ -212,7 +263,6 @@ private:
 //-----------------------------------------------------------------------------
 // MyAuxilliaryFrame
 //-----------------------------------------------------------------------------
-
 class MyAuxilliaryFrame : public wxDialog
 {
 public:
@@ -221,33 +271,41 @@ public:
         m_grid = (wxGrid*)NULL;
         m_statusBar = (wxStatusBar*)NULL;
         Create(parent, canvas, desc); 
-    }
+    } //MyAuxilliaryFrame c-tor
     ~MyAuxilliaryFrame();
 
-    int UpdateCellsUnits(void);
+    void SetGridUnits(void);
+
     wxGrid *m_grid;
+    MyFrame *m_parentFrame;
+
 private:
+    bool m_updateGridUnits;
     MyCanvas *m_canvas;
     wxStatusBar * m_statusBar;
-    enum gridColumns {gridColName, gridColData, gridColValue, gridColUnit};
+    enum gridColumns 
+    {
+        gridColName, 
+        gridColData, 
+        gridColValue, 
+        gridColUnit
+    };
     int InitPopulateCells(void);
     int PopulateCellVals(void);
+    int UpdateCellsUnits(void);
+    void OnPaint(wxPaintEvent&);
 
     bool Create(wxWindow *parent, MyCanvas * canvas, const wxString& desc)
     {
         if (!wxDialog::Create(parent, ID_AUX_FRAME, desc, 
                     wxDefaultPosition, wxDefaultSize,
                     wxDEFAULT_DIALOG_STYLE))
-                    //wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)))
         {
             return false;
         }
         m_canvas = canvas;
-#if 0
-        m_statusBar = wxFrame::CreateStatusBar(2);
-        int widths[] = { -1, 20 };
-        m_statusBar->SetStatusWidths( 2, widths );
-#endif
+        m_parentFrame = (MyFrame*)parent;
+
         m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
@@ -264,41 +322,52 @@ private:
         m_grid->SetColLabelSize(wxGRID_AUTOSIZE);
         m_grid->AutoSize();
 
-    {
-    wxPoint p;
-    wxSize gSz = m_grid->GetSize();
-    p.x = 0;
-    p.y += gSz.GetHeight();
-    wxSize bSz = wxDefaultSize;
-    bSz.SetWidth(gSz.GetWidth());
-    wxButton *b = new wxButton(this, wxID_OK, _("OK"), p, bSz);
-    bSz = b->GetDefaultSize();
-        gSz.IncBy(0, bSz.GetHeight());
-        SetClientSize(gSz);
-    }
+        {
+            wxPoint pt;
+            wxSize gSz = m_grid->GetSize();
+            pt.x = 0;
+            pt.y += gSz.GetHeight();
+            wxSize bSz = wxDefaultSize;
+            bSz.SetWidth(gSz.GetWidth()-10);
+            wxButton *b = new wxButton(this, wxID_OK, _("OK"), pt, bSz);
+            bSz = b->GetDefaultSize();
+#ifdef __WXOSX_COCOA__
+            gSz.IncBy(0, bSz.GetHeight()*1.5);
+#else
+            gSz.IncBy(0, bSz.GetHeight());
+#endif
+            SetClientSize(gSz);
+        }
 
         return true;
-    }
-
-    void OnPaint(wxPaintEvent& WXUNUSED(event))
-    {
-//    (void)wxMessageBox(_("Got Here!"),
-//                               "One wire Weather", wxICON_INFORMATION | wxOK );
-
-        PopulateCellVals();
-#ifndef __WXOSX_COCOA__
-        //m_grid->AutoSize();
-#endif
-        //SetClientSize(m_grid->GetSize());
-        wxLogStatus("Got Here");
-    }
+    } //Create
 
     DECLARE_EVENT_TABLE()
-};
+}; //class MyAuxilliaryFrame
+
+
+void MyAuxilliaryFrame::SetGridUnits(void)
+{
+    m_updateGridUnits = true;
+} //MyAuxilliaryFrame::SetGridUnits
+
+
+
+void MyAuxilliaryFrame::OnPaint(wxPaintEvent& WXUNUSED(event))
+{
+    if(true == m_updateGridUnits)
+    {
+        UpdateCellsUnits();
+        m_updateGridUnits = false;
+    }
+    PopulateCellVals();
+} //MyAuxilliaryFrame::OnPaint
+
 
 MyAuxilliaryFrame::~MyAuxilliaryFrame()
 {
-}
+    ;
+} //MyAuxilliaryFrame d-tor
 
 
 
@@ -347,7 +416,7 @@ int MyAuxilliaryFrame::InitPopulateCells()
         }
     }
     return 0;
-}
+} //MyAuxilliaryFrame::InitPopulateCells
 
 
 int MyAuxilliaryFrame::UpdateCellsUnits()
@@ -386,7 +455,7 @@ int MyAuxilliaryFrame::UpdateCellsUnits()
         }
     }
     return 0;
-}
+} //MyAuxilliaryFrame::UpdateCellsUnits
 
 int MyAuxilliaryFrame::PopulateCellVals(void)
 {
@@ -434,8 +503,11 @@ int MyAuxilliaryFrame::PopulateCellVals(void)
             }
         }
     }
+#ifndef __WXOSX_COCOA__
+    m_grid->AutoSize();
+#endif
     return 0;
-}
+} //MyAuxilliaryFrame::PopulateCellVals
 
 
 // ----------------------------------------------------------------------------
@@ -445,7 +517,7 @@ class MySettingsDialog: public wxPropertySheetDialog
 {
 DECLARE_CLASS(MySettingsDialog)
 public:
-    MySettingsDialog(wxWindow* parent, int dialogType);
+    MySettingsDialog(wxWindow* parent);
     ~MySettingsDialog();
 
     wxPanel* CreateServerSettingsPage(wxWindow* parent);
@@ -458,9 +530,9 @@ public:
     wxCheckBox        *launchAtStart;
     wxChoice          *unitsChoice;
     wxCheckBox        *animateDisplay;
+    wxCheckBox        *restoreAuxFrame;
     wxChoice          *browserChoice;
     wxTextCtrl        *urlCmdText;
-
 
 protected:
     enum {
@@ -470,51 +542,14 @@ protected:
         ID_LAUNCH_CHECK,
         ID_UNITS_CHOICE,
         ID_ANIMATE_CHECK,
+        ID_RESTOREAUX_CHECK,
         ID_BROWSER_CHOICE,
         ID_URLCMD_TEXT
     };
 
-    wxImageList*    m_imageList;
-
 DECLARE_EVENT_TABLE()
-};
+}; //class MySettingsDialog
 
-// ----------------------------------------------------------------------------
-// MySetupDialogy
-// ----------------------------------------------------------------------------
-
-class MySetupDialog: public wxDialog
-{
-public:
- 
-    MySetupDialog ( wxWindow * , wxWindowID , wxString const & , 
-                        wxPoint const & , wxSize const & , long );
-
-    wxTextCtrl * dialogText;
-    wxString GetText();
- 
-private:
-    wxButton *m_btnOk,
-             *m_btnCancel,
-             *m_btnDelete;
- 
-    void OnButton( wxCommandEvent & event );
- 
-    DECLARE_EVENT_TABLE()
-};
-
-enum
-{
-    Menu_SubMenu = 450,
-    Menu_SubMenu_Radio0,
-    Menu_SubMenu_Radio1,
-    Menu_SubMenu_Radio2,
-    Menu_SubMenu_Radio3,
-    DIALOGS_PROPERTY_SHEET,
-    DIALOGS_PROPERTY_SHEET_TOOLBOOK,
-    DIALOGS_PROPERTY_SHEET_BUTTONTOOLBOOK,
-
-};
 
 // ----------------------------------------------------------------------------
 // MyFrame
@@ -531,13 +566,17 @@ public:
     void OnAbout( wxCommandEvent &event );
     void OnAuxilliary( wxCommandEvent &event );
     void OnMap( wxCommandEvent &event );
+    void OnMessages( wxCommandEvent &event );
+#ifdef __WXMOTIF__
     void OnMenuToggleUnits( wxCommandEvent &event );
+#endif
 #if 0
     void OnSetup( wxCommandEvent &event );
     void OnDevices( wxCommandEvent &event );
 #endif
     void OnQuit( wxCommandEvent &event );
 
+    wxLogWindow       *m_logWindow;
     wxMenu            *menuImage;
     wxMenu            *subMenu;
     MyCanvas          *m_canvas;
@@ -554,6 +593,16 @@ public:
     int                m_browser;
     bool               m_restoreAuxFrame;
 private:
+    enum
+    {
+        Menu_SubMenu = 450,
+        Menu_SubMenu_Radio0,
+        Menu_SubMenu_Radio1,
+        Menu_SubMenu_Radio2,
+        Menu_SubMenu_Radio3,
+        DIALOGS_PROPERTY_SHEET,
+    };
+
     void OnMenuSetUnits(wxCommandEvent &event);
     int InitServerConnection(void);
     void OnPropertySheet(wxCommandEvent& event);
@@ -567,7 +616,7 @@ private:
 
     DECLARE_DYNAMIC_CLASS(MyFrame)
     DECLARE_EVENT_TABLE()
-};
+}; //class MyFrame
 
 
 
@@ -576,9 +625,8 @@ private:
 // ============================================================================
 
 //-----------------------------------------------------------------------------
-// MyImageFrame
+// MyAuxilliaryFrame
 //-----------------------------------------------------------------------------
-
 BEGIN_EVENT_TABLE(MyAuxilliaryFrame, wxDialog)
     EVT_PAINT(MyAuxilliaryFrame::OnPaint)
 #if 0
@@ -590,11 +638,6 @@ END_EVENT_TABLE()
 //-----------------------------------------------------------------------------
 // MyFrame
 //-----------------------------------------------------------------------------
-
-#if 0
-char g_tempStr[50];
-char g_windStr[50];
-#endif
 
 static int
 print_data(owwl_conn * /*conn*/, owwl_data *data, void * /*user_data*/)
@@ -673,21 +716,15 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_MENU(ID_QUIT,  MyFrame::OnQuit)
     EVT_MENU(ID_AUXILLIARY, MyFrame::OnAuxilliary)
     EVT_MENU(ID_MAP,   MyFrame::OnMap)
-    EVT_MENU(ID_MESSAGES,  MyFrame::OnMenuToggleUnits)
-#if 0
-    EVT_MENU(ID_SETUP, MyFrame::OnSetup)
-    EVT_MENU(ID_DEVICES, MyFrame::OnDevices)
+#ifdef __WXMOTIF__
+    EVT_MENU(ID_TOGGLEUNITS,  MyFrame::OnMenuToggleUnits)
 #endif
-
+    EVT_MENU(ID_MESSAGES,  MyFrame::OnMessages)
     EVT_MENU(Menu_SubMenu_Radio0, MyFrame::OnMenuSetUnits)
     EVT_MENU(Menu_SubMenu_Radio1, MyFrame::OnMenuSetUnits)
     EVT_MENU(Menu_SubMenu_Radio2, MyFrame::OnMenuSetUnits)
     EVT_MENU(Menu_SubMenu_Radio3, MyFrame::OnMenuSetUnits)
-
-    EVT_MENU(DIALOGS_PROPERTY_SHEET,                MyFrame::OnPropertySheet)
-    EVT_MENU(DIALOGS_PROPERTY_SHEET_TOOLBOOK,       MyFrame::OnPropertySheet)
-    EVT_MENU(DIALOGS_PROPERTY_SHEET_BUTTONTOOLBOOK, MyFrame::OnPropertySheet)
-
+    EVT_MENU(DIALOGS_PROPERTY_SHEET, MyFrame::OnPropertySheet)
 END_EVENT_TABLE()
 
 
@@ -706,12 +743,12 @@ MyFrame::~MyFrame()
     m_config->Write(_T("/MainFrame/y"), (long) y);
     m_config->Write(_T("/MainFrame/w"), (long) w);
     m_config->Write(_T("/MainFrame/h"), (long) h);
-}
+} //MyFrame d-tor
 
 
 
 MyFrame::MyFrame()
-    : wxFrame( (wxFrame *)NULL, ID_MAIN_FRAME, wxT("Oww"), 
+    : wxFrame( (wxFrame *)NULL, ID_MAIN_FRAME, wxT("oww-wxgui"), 
                 wxPoint(20, 20), 
                 wxSize(474, 441),
                 wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)
@@ -742,7 +779,7 @@ MyFrame::MyFrame()
     {
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
-        (void)wxMessageBox(_("The Winsock dll not found!"),
+        (void)wxLogVerbose(_("The Winsock dll not found!"),
                                "One wire Weather", wxICON_INFORMATION | wxOK );
     }
     /* Confirm that the WinSock DLL supports 2.2.*/
@@ -754,9 +791,9 @@ MyFrame::MyFrame()
     {
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
-        (void)wxMessageBox(wxString::Format("The dll do not support the Winsock version %u.%u!", 
-                                               LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)),
-                                               "One wire Weather", wxICON_INFORMATION | wxOK );
+        (void)wxLogVerbose(wxString::Format("Winsock dll is version %u.%u",
+                                  LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)),
+                                  "One wire Weather", wxICON_INFORMATION | wxOK );
         WSACleanup();
     }
 #endif
@@ -778,7 +815,8 @@ MyFrame::MyFrame()
     menuImage = new wxMenu;
     menuImage->Append(ID_AUXILLIARY, wxT("Auxilary"), "See other device values");
 #ifdef __WXMOTIF__
-    menuImage->Append(ID_MESSAGES, wxT("Toggle Units"), "Swap Meteric and Imperial");
+    // Motif doesn't do submenus, soooo....
+    menuImage->Append(ID_TOGGLEMENU, wxT("Toggle Units"), "Swap Meteric and Imperial");
 #else
     subMenu = new wxMenu;
     subMenu->AppendRadioItem(Menu_SubMenu_Radio0, wxT("Metric"), wxT("Metric"));
@@ -793,13 +831,9 @@ MyFrame::MyFrame()
     menuImage->Append(Menu_SubMenu, wxT("Change Units"), subMenu);
 #endif
     menuImage->Append(ID_MAP, wxT("Map"), "Map this station");
+    menuImage->Append(ID_MESSAGES, wxT("Messages"), "Show Messages");
     menuImage->AppendSeparator();
     menuImage->Append(DIALOGS_PROPERTY_SHEET, wxT("Setup"), "Edit Preferences");
-#if 0
-    menuImage->Append(DIALOGS_PROPERTY_SHEET_TOOLBOOK, wxT("&Toolbook sheet\tShift-Ctrl-T"));
-    menuImage->Append(ID_SETUP, wxT("Setup"), "Edit Preferences");
-    menuImage->Append(ID_DEVICES, "Devices", "Configure devices");
-#endif
 #ifndef __WXOSX_COCOA__
     menuImage->AppendSeparator();
 #endif
@@ -813,7 +847,6 @@ MyFrame::MyFrame()
     m_statusbar = CreateStatusBar(2);
     int widths[] = { -1, 200 };
     SetStatusWidths( 2, widths );
-    //Refresh();
 
     m_config->SetPath(_T("/MainFrame"));
     // restore frame position and size
@@ -842,21 +875,15 @@ MyFrame::MyFrame()
     {
         SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
     }
+    
     if(true == m_restoreAuxFrame)
     {
         m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, "Auxilliary Data");
         m_canvas->m_auxilliaryFrame->Show();
     }
     return;
-}
+} //MyFrame c-tor
 
-#ifdef __WXMSW__
-#define sock_error WSAGetLastError()
-#define sock_close _close
-#else
-#define sock_error h_errno
-#define sock_close close
-#endif
 
 int MyFrame::InitServerConnection(void)
 {
@@ -873,8 +900,8 @@ int MyFrame::InitServerConnection(void)
             host = gethostbyname(m_hostname.c_str()) ;
             if(NULL == host) 
             {
-                (void)wxMessageBox(wxString::Format("gethostbyname=%d", sock_error),
-                                                     "One wire Weather", wxICON_INFORMATION | wxOK );
+                wxLogVerbose(wxString::Format("gethostbyname=%d", sock_error),
+                                   "One wire Weather", wxICON_INFORMATION | wxOK );
             }
         }
         else
@@ -883,11 +910,11 @@ int MyFrame::InitServerConnection(void)
             host = gethostbyaddr((const char *)&addr_in, sizeof(struct sockaddr_in), AF_INET);
             if(NULL == host) 
             {
-                (void)wxMessageBox(wxString::Format("gethostbyaddr=%d", sock_error),
-                                                      "One wire Weather", wxICON_INFORMATION | wxOK );
+                wxLogVerbose(wxString::Format("gethostbyaddr=%d", sock_error),
+                                   "One wire Weather", wxICON_INFORMATION | wxOK );
             }
         }
-        if (host)
+        if (NULL != host)
         {
             addr_in.sin_family = AF_INET;
             addr_in.sin_port   = htons(m_port);
@@ -905,26 +932,26 @@ int MyFrame::InitServerConnection(void)
                     switch(retval)
                     {
                         case Owwl_Read_Error:
-                            wxLogStatus("Protocol error");
+                            wxLogVerbose("Protocol error");
                             retval = -1;
                             break;
                         case Owwl_Read_Disconnect:
-                            wxLogStatus("Server disconnect");
+                            wxLogVerbose("Server disconnect");
                             sock_close(m_s);
                             m_s = -1;
                             g_connection = m_connection = NULL;
                             retval = -1;
                             break;
                         case Owwl_Read_Again:
-                            wxLogStatus("Read again");
+                            wxLogVerbose("Read again");
                             retval = -1;
                             break;
                         case Owwl_Read_Read_And_Decoded:
-                            //SetStatusText("Read & Decode");
+                            wxLogVerbose("Read & Decode");
                             break;
                         default:
                             retval = -1;
-                            wxLogStatus("Read default");
+                            wxLogVerbose("Read default");
                             break;
                     }
                     if(m_connection)
@@ -934,28 +961,28 @@ int MyFrame::InitServerConnection(void)
                 }
                 else
                 {
-                    wxLogStatus("Error: connect failed %d", errno);
+                    wxLogVerbose("Error: connect failed %d", errno);
                     owwl_free(m_connection);
                     sock_close(m_s);
                     m_s = -1;
                     g_connection = m_connection = NULL;
                     retval = -1;
-                }
+                } //connect()
             }
             else
             {
-                wxLogStatus("Error: s<0 %d", errno);
+                wxLogVerbose("Error: s<0 %d", errno);
                 retval = -1;
-            }
+            } //socket()
         }
         else
         {
-            wxLogStatus(wxT("Unable to resolve host name %s"), m_hostname);
+            wxLogVerbose(wxT("Unable to resolve host name %s"), m_hostname);
             retval = -1;
-        }
+        } //NULL!=host
     }
     return retval;
-}
+} //MyFrame::InitServerConnection
 
 
 
@@ -969,10 +996,10 @@ void MyFrame::OnMenuSetUnits(wxCommandEvent& event)
     }
     if(NULL != m_canvas->m_auxilliaryFrame)
     {
-        m_canvas->m_auxilliaryFrame->UpdateCellsUnits();
+        m_canvas->m_auxilliaryFrame->SetGridUnits();
     }
     return;
-}
+} //MyFrame::OnMenuSetUnits
 
 
 void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
@@ -986,7 +1013,7 @@ void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
     g_connection = m_connection = NULL;
     
     Close( true );
-}
+} //MyFrame::OnQuit
 
 
 void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
@@ -1016,16 +1043,19 @@ void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
 #else
     wxAboutDialogInfo info;
     //info.SetIcon();
-    info.SetName(_("Oww"));
-    info.SetDescription(_("One wire Weather"));
-    info.SetWebSite(_("oww.sourceforge.net"), _("Oww website"));
+    info.SetName(_("oww-wxgui"));
+    info.SetDescription(_("One wire Weather GUI"));
+    info.AddDeveloper("Mark Clayton");
+    info.AddDeveloper("\nDr. Simon Melhuish, author of oww - Thank You!");
+    info.AddDeveloper("\nThe wxWidgets team! - Thank You!");
+    info.SetWebSite(_("www.mark-clayton.com/oww-wxgui"), _("oww-wxgui website"));
     info.SetVersion(g_VersionStr);
     info.SetCopyright(_T("(C) 2012 Mark Clayton <mark_clayton@users.sourceforge.net>"));
 
     wxAboutBox(info);
     
 #endif
-}
+} //MyFrame::OnAbout
 
 class MyDevicesFrame : public wxFrame
 {
@@ -1033,9 +1063,7 @@ public:
     MyDevicesFrame(wxWindow* parent, wxString title) :
         wxFrame(parent, wxID_ANY, title)
     {
-    
         Connect(wxEVT_PAINT, wxPaintEventHandler(MyDevicesFrame::OnPaint));
-
         Show();
     }
 
@@ -1055,118 +1083,64 @@ private:
     }
 
     wxDECLARE_NO_COPY_CLASS(MyDevicesFrame);
-};
+}; //class MyDeviceFrame
 
 
-#if 0
-BEGIN_EVENT_TABLE(MySetupDialog, wxDialog)
-    EVT_BUTTON(wxID_ANY, MySetupDialog::OnButton)
-END_EVENT_TABLE()
-
-
-
-void MySetupDialog::OnButton (wxCommandEvent & event)
-{
-    event.Skip();
-    return;
-}
-
-
-MySetupDialog::MySetupDialog ( wxWindow * parent, wxWindowID id, 
-                                wxString const & title,
-                  wxPoint const & position = wxDefaultPosition,
-                  wxSize const & size = wxDefaultSize,
-                  long style = wxDEFAULT_DIALOG_STYLE )
-: wxDialog( parent, id, title, position, size, style)
-{
-    wxString dimensions = "", s;
-    wxPoint p;
-    wxSize  sz;
- 
-    sz.SetWidth(size.GetWidth() - 20);
-    sz.SetHeight(size.GetHeight() - 70);
- 
-    p.x = 6; p.y = 2;
-    s.Printf(_(" x = %d y = %d\n"), p.x, p.y);
-    dimensions.append(s);
-    s.Printf(_(" width = %d height = %d\n"), sz.GetWidth(), sz.GetHeight());
-    dimensions.append(s);
-    dimensions.append("Mark Clayton");
- 
-    dialogText = new wxTextCtrl(this, -1, dimensions, p, sz, wxTE_MULTILINE);
- 
-    p.y += sz.GetHeight() + 10;
-    wxButton *b = new wxButton(this, wxID_OK, _("OK"), p, wxDefaultSize);
-    p.x += 110;
-    wxButton *c = new wxButton(this, wxID_CANCEL, _("Cancel"), p, wxDefaultSize);
-
-    SetEscapeId(wxID_CANCEL);
-
-}
-
-void MyFrame::OnSetup( wxCommandEvent &WXUNUSED(event) )
-{
-    wxString dialogText;
-    MySetupDialog setupDialog(this, -1, _("Your very own dialog"),
-                              wxPoint(100, 100), wxSize(200, 200));
-    setupDialog.ShowModal();
-}
-#endif
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
     m_restoreAuxFrame = true;
     m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, "Auxilliary Data");
     m_canvas->m_auxilliaryFrame->Show();
-}
+} //MyFrame::OnAuxilliary
+
+
+
+void MyFrame::OnMessages( wxCommandEvent &WXUNUSED(event) )
+{
+    m_logWindow->Show();
+} //MyFrame::OnMessages
+
+
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
     if(NULL != m_connection)
     {
-        char command[2048];
-        sprintf(command, "open /Applications/Safari.app/Contents/MacOS/Safari " + m_mapurl, m_connection->latitude, m_connection->longitude);
+        wxLogVerbose("OnMap Latitude=%3.4f", m_connection->latitude);
+        wxLogVerbose("OnMap Longitude=%3.4f", m_connection->longitude);
 
+        char command[2048];
+        sprintf(command, "open /Applications/Safari.app/Contents/MacOS/Safari " + 
+                                 m_mapurl, m_connection->latitude, m_connection->longitude);
         wxArrayString output;
         wxExecute(wxString(command), output);
     }
     else
     {
-        (void)wxMessageBox("Can not map a server when you're not connected to a server",
-                        "One wire Weather",
-                        wxICON_INFORMATION | wxOK );
+        wxLogVerbose("Can not map a server location if you're not connected to a server");
     }
-}
+} //MyFrame::OnMap
 
 
+#ifdef __WXMOTIF__
 void MyFrame::OnMenuToggleUnits( wxCommandEvent &WXUNUSED(event) )
 {
-    //int i;
     if(NULL != m_connection)
     {
-        changeUnits((unit_choices[0]==OwwlUnit_Imperial) ? OwwlUnit_Metric : OwwlUnit_Imperial);
-        //for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
-        //{
-        //    unit_choices[i] = (unit_choices[i]==OwwlUnit_Imperial)
-        //                                   ? OwwlUnit_Metric : OwwlUnit_Imperial;
-        //}
+        changeUnits((unit_choices[0]==OwwlUnit_Imperial) ? 
+                                          OwwlUnit_Metric : OwwlUnit_Imperial);
     }
     if(NULL != m_canvas->m_auxilliaryFrame)
     {
-        m_canvas->m_auxilliaryFrame->UpdateCellsUnits();
+        m_canvas->m_auxilliaryFrame->SetGridUnits();
     }
-}
-
-#if 0
-void MyFrame::OnDevices(wxCommandEvent& WXUNUSED(event))
-{
-    new MyDevicesFrame(this, "Devices");
-}
+} //MyFrame::OnMenuToggleUnits
 #endif
 
-void MyFrame::OnPropertySheet(wxCommandEvent& event)
+void MyFrame::OnPropertySheet(wxCommandEvent& WXUNUSED(event))
 {
-    MySettingsDialog dialog(this, event.GetId());
+    MySettingsDialog dialog(this);
 
     dialog.serverText->SetValue(m_hostname);
     dialog.portSpin->SetValue(m_port);
@@ -1174,13 +1148,13 @@ void MyFrame::OnPropertySheet(wxCommandEvent& event)
     dialog.launchAtStart->SetValue(true);
     dialog.unitsChoice->SetSelection(unit_choices[0]);
     dialog.animateDisplay->SetValue(true);
+    dialog.restoreAuxFrame->SetValue(true);
     dialog.browserChoice->SetSelection(m_browser);
     dialog.urlCmdText->SetValue(m_mapurl);
 
     switch(dialog.ShowModal())
     {
         case wxID_CANCEL:
-            //(void)wxMessageBox("Cancel", "One wire Weather", wxICON_INFORMATION | wxOK );
             break;
         case wxID_OK:
             m_hostname = dialog.serverText->GetValue();
@@ -1189,24 +1163,25 @@ void MyFrame::OnPropertySheet(wxCommandEvent& event)
             m_launchAtStart = dialog.launchAtStart->GetValue();
             m_units = dialog.unitsChoice->GetSelection();
             m_animateDisplay = dialog.animateDisplay->GetValue();
+            m_restoreAuxFrame = dialog.restoreAuxFrame->GetValue();
             m_browser = dialog.browserChoice->GetSelection();
             m_mapurl = dialog.urlCmdText->GetValue();
             m_config = wxConfigBase::Get();
             m_config->Write("server", m_hostname);
             m_config->Write("port", m_port);
-	    m_config->Write("pollInterval", m_pollInterval);
+            m_config->Write("pollInterval", m_pollInterval);
             m_config->Write("launchStStart", m_launchAtStart);
             m_config->Write("units", m_units);
             changeUnits(m_units);
             m_config->Write("animateDisplay", m_animateDisplay);
+            m_config->Write("restoreAuxFrame", m_restoreAuxFrame);
             m_config->Write("browser", m_browser);
             m_config->Write("mapurl", m_mapurl);
-            //(void)wxMessageBox("OK", "One wire Weather", wxICON_INFORMATION | wxOK );
             break;
         default:
-            (void)wxMessageBox("default", "One wire Weather", wxICON_INFORMATION | wxOK );
+            wxASSERT(true);
     }
-}
+} //MyFrame::OnPropertySheet
 
 
 // ----------------------------------------------------------------------------
@@ -1219,62 +1194,17 @@ BEGIN_EVENT_TABLE(MySettingsDialog, wxPropertySheetDialog)
 
 END_EVENT_TABLE()
 
-MySettingsDialog::MySettingsDialog(wxWindow* win, int dialogType)
+MySettingsDialog::MySettingsDialog(wxWindow* win)
 {
     SetExtraStyle(wxDIALOG_EX_CONTEXTHELP|wxWS_EX_VALIDATE_RECURSIVELY);
 
-    int tabImage1 = -1;
-    int tabImage2 = -1;
-    int tabImage3 = -1;
-
-    bool useToolBook = (dialogType == DIALOGS_PROPERTY_SHEET_TOOLBOOK || dialogType == DIALOGS_PROPERTY_SHEET_BUTTONTOOLBOOK);
-    int resizeBorder = wxRESIZE_BORDER;
-
-    if (useToolBook)
-    {
-        resizeBorder = 0;
-        tabImage1 = 0;
-        tabImage2 = 1;
-        tabImage3 = 0;
-
-        int sheetStyle = wxPROPSHEET_SHRINKTOFIT;
-        if (dialogType == DIALOGS_PROPERTY_SHEET_BUTTONTOOLBOOK)
-            sheetStyle |= wxPROPSHEET_BUTTONTOOLBOOK;
-        else
-            sheetStyle |= wxPROPSHEET_TOOLBOOK;
-
-        SetSheetStyle(sheetStyle);
-        SetSheetInnerBorder(0);
-        SetSheetOuterBorder(0);
-
-        // create a dummy image list with a few icons
-        const wxSize imageSize(32, 32);
-
-        m_imageList = new wxImageList(imageSize.GetWidth(), imageSize.GetHeight());
-        m_imageList->
-            Add(wxArtProvider::GetIcon(wxART_INFORMATION, wxART_OTHER, imageSize));
-        m_imageList->
-            Add(wxArtProvider::GetIcon(wxART_QUESTION, wxART_OTHER, imageSize));
-        m_imageList->
-            Add(wxArtProvider::GetIcon(wxART_WARNING, wxART_OTHER, imageSize));
-        m_imageList->
-            Add(wxArtProvider::GetIcon(wxART_ERROR, wxART_OTHER, imageSize));
-    }
-    else
-        m_imageList = NULL;
-
-    Create(win, wxID_ANY, _("Preferences"), wxDefaultPosition, wxSize(500,300),
-        wxDEFAULT_DIALOG_STYLE| (int)wxPlatform::IfNot(wxOS_WINDOWS_CE, resizeBorder)
-    );
+    Create(win, wxID_ANY, _("Preferences"), wxDefaultPosition, wxSize(500,300), 
+                                  wxDEFAULT_DIALOG_STYLE);
 
     // If using a toolbook, also follow Mac style and don't create buttons
-    if (!useToolBook)
-        CreateButtons(wxOK | wxCANCEL |
-                        (int)wxPlatform::IfNot(wxOS_WINDOWS_CE, wxHELP)
-    );
+    CreateButtons(wxOK | wxCANCEL | wxHELP);
 
     wxBookCtrlBase* notebook = GetBookCtrl();
-    notebook->SetImageList(m_imageList);
 
     wxPanel* serverSettings ;
     wxPanel* displaySettings;
@@ -1284,17 +1214,16 @@ MySettingsDialog::MySettingsDialog(wxWindow* win, int dialogType)
     displaySettings = CreateDisplaySettingsPage(notebook);
     launchSettings = CreateLaunchSettingsPage(notebook);
 
-    notebook->AddPage(serverSettings, _("Server"), true, tabImage1);
-    notebook->AddPage(displaySettings, _("Display"), false, tabImage2);
-    notebook->AddPage(launchSettings, _("URL Launch"), false, tabImage3);
+    notebook->AddPage(serverSettings, _("Server"), true);
+    notebook->AddPage(displaySettings, _("Display"), false);
+    notebook->AddPage(launchSettings, _("URL Launch"), false);
 
     LayoutDialog();
-}
+} //MySettingsDialog c-tor
 
 MySettingsDialog::~MySettingsDialog()
 {
-    delete m_imageList;
-}
+} //MySettingsDialog d-tor
 
 wxPanel* MySettingsDialog::CreateServerSettingsPage(wxWindow* parent)
 {
@@ -1304,23 +1233,30 @@ wxPanel* MySettingsDialog::CreateServerSettingsPage(wxWindow* parent)
 
     // Connect to server on startup
     wxBoxSizer* itemSizer = new wxBoxSizer( wxVERTICAL );
-    serverText = new wxTextCtrl(panel, ID_SERVER_TEXT, wxEmptyString, wxDefaultPosition, wxSize(300, -1), wxTE_LEFT);
+    serverText = new wxTextCtrl(panel, ID_SERVER_TEXT, wxEmptyString, wxDefaultPosition, 
+                                wxSize(300, -1), wxTE_LEFT);
     serverText->SetFocus();
-    portSpin = new wxSpinCtrl(panel, ID_PORT_SPIN, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS, 7000, 65500, 8899);
-    pollSpin = new wxSpinCtrl(panel, ID_POLL_SPIN, wxEmptyString, wxDefaultPosition, wxSize(50, -1), wxSP_ARROW_KEYS, 1, 65, 5);
-    launchAtStart = new wxCheckBox(panel, ID_LAUNCH_CHECK, _("Connect on startup"), wxDefaultPosition, wxDefaultSize);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Server:")), 0, wxALIGN_CENTER_VERTICAL, 5);
+    portSpin = new wxSpinCtrl(panel, ID_PORT_SPIN, wxEmptyString, wxDefaultPosition, 
+                                wxSize(100, -1), wxSP_ARROW_KEYS, 7000, 65500, 8899);
+    pollSpin = new wxSpinCtrl(panel, ID_POLL_SPIN, wxEmptyString, wxDefaultPosition,
+                                wxSize(50, -1), wxSP_ARROW_KEYS, 1, 65, 5);
+    launchAtStart = new wxCheckBox(panel, ID_LAUNCH_CHECK, _("Connect on startup"), 
+                                wxDefaultPosition, wxDefaultSize);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Server:")), 0,
+                                wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(serverText, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Port : ")), 0, wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Port : ")), 0, 
+                                wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(portSpin, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Poll Interval (seconds) : ")), 0, wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Poll Interval (seconds) : ")), 0, 
+                                wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(pollSpin, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
     itemSizer->Add(launchAtStart, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     topSizer->Add(itemSizer, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
     panel->SetSizerAndFit(topSizer);
 
     return panel;
-}
+} // MySettingsDialog::CreateServerSettingsPage
 
 wxPanel* MySettingsDialog::CreateDisplaySettingsPage(wxWindow* parent)
 {
@@ -1329,24 +1265,29 @@ wxPanel* MySettingsDialog::CreateDisplaySettingsPage(wxWindow* parent)
     wxBoxSizer *topSizer = new wxBoxSizer( wxVERTICAL );
     wxBoxSizer *itemSizer = new wxBoxSizer( wxVERTICAL );
 
-    itemSizer->Add(new wxStaticText(panel, wxID_ANY, _("Units:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_ANY, _("Units:")), 0, wxALIGN_CENTER_VERTICAL, 5);
     // Display Units: Metric, Imperial, Alt 1, Alt 2
     wxArrayString unitChoices;
     unitChoices.Add(wxT("Metric"));
     unitChoices.Add(wxT("Imperial"));
     unitChoices.Add(wxT("Alt 1"));
     unitChoices.Add(wxT("Alt 2"));
-    unitsChoice = new wxChoice(panel, ID_UNITS_CHOICE, wxDefaultPosition, wxDefaultSize, unitChoices);
+    unitsChoice = new wxChoice(panel, ID_UNITS_CHOICE, wxDefaultPosition, 
+                               wxDefaultSize, unitChoices);
     unitsChoice->SetSelection(1);
     unitsChoice->SetFocus();
-    animateDisplay = new wxCheckBox(panel, ID_ANIMATE_CHECK, _("Animate"), wxDefaultPosition, wxDefaultSize);
+    animateDisplay = new wxCheckBox(panel, ID_ANIMATE_CHECK, _("Animate"), 
+                               wxDefaultPosition, wxDefaultSize);
+    restoreAuxFrame = new wxCheckBox(panel, ID_RESTOREAUX_CHECK, _("Restore Auxilliary Window"), 
+                               wxDefaultPosition, wxDefaultSize);
     itemSizer->Add(unitsChoice, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(animateDisplay, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(restoreAuxFrame, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     topSizer->Add(itemSizer, 0, wxGROW|wxALL, 5);
     panel->SetSizerAndFit(topSizer);
 
     return panel;
-}
+} //MySettingsDialog::CreateDisplaySettingsPage
 
 
 
@@ -1371,24 +1312,27 @@ wxPanel* MySettingsDialog::CreateLaunchSettingsPage(wxWindow* parent)
     browserChoices.Add(wxT("Chrome"));
     browserChoices.Add(wxT("Lynx"));
     browserChoices.Add(wxT("Netscape"));
-    browserChoice = new wxChoice(panel, ID_BROWSER_CHOICE, wxDefaultPosition, wxDefaultSize, browserChoices);
+    browserChoice = new wxChoice(panel, ID_BROWSER_CHOICE, wxDefaultPosition, 
+                                 wxDefaultSize, browserChoices);
     browserChoice->SetSelection(1);
     browserChoice->SetFocus();
-    urlCmdText = new wxTextCtrl(panel, ID_URLCMD_TEXT, wxEmptyString, wxDefaultPosition, wxSize(400, -1), wxTE_LEFT);
+    urlCmdText = new wxTextCtrl(panel, ID_URLCMD_TEXT, wxEmptyString, wxDefaultPosition, 
+                                wxSize(400, -1), wxTE_LEFT);
 
-    itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Browser:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
+    itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Browser:")), 0, 
+                                wxALIGN_CENTER_VERTICAL, 2);
     itemSizer2->Add(browserChoice, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
-    itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Map URL:")), 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
+    itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Map URL:")), 0, 
+                                wxALIGN_CENTER_VERTICAL, 2);
     itemSizer2->Add(urlCmdText, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
     styleSizer->Add(itemSizer2, 0, wxGROW|wxALL, 2);
 
     topSizer->Add( item0, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
-    //topSizer->AddSpacer(5);
 
     panel->SetSizerAndFit(topSizer);
 
     return panel;
-}
+} //MySettingsDialog::CreateLaunchSettingsPage
 
 
 
@@ -1406,57 +1350,133 @@ bool MyApp::OnInit()
     wxInitAllImageHandlers();
 
     wxFrame *frame = new MyFrame();
+
+#ifdef WXOWWGUI_LOG_TO_FILE
+    wxFileName logPath = wxFileName(wxT("UpdaterLog.txt"));
+    if( logPath.Normalize(wxPATH_NORM_ALL, muApp::GetAppDir().GetPath()) )
+    {
+        // create log
+        logFile.Open(logPath.GetFullPath(), wxT("w"));
+        logTarget = new wxLogStderr(logFile.fp()); 
+        logTargetOld = wxLog::GetActiveTarget();
+        logTarget->SetVerbose(TRUE); 
+        wxLog::SetActiveTarget(logTarget); 
+        }
+#else
+    wxLogWindow *m_logWindow = new wxLogWindow(frame, wxT("Log") );
+    wxFrame *pLogFrame = m_logWindow->GetFrame();
+    pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP);
+    pLogFrame->SetSize( wxRect(0,50,400,250) );
+    m_logWindow->SetVerbose(TRUE);
+    wxLog::SetActiveTarget(m_logWindow);
+    m_logWindow->Show();
+#endif
+
+    wxLogVerbose("Welcome to oww-wxgui");
+
+    LogPlatform();
+
+    wxLogVerbose("cmdln: %s", MyApp::GetCmdLine().c_str());
+
+    wxLogVerbose("latitude==%f", ((MyFrame*)frame)->m_connection->latitude);
+    wxLogVerbose("longitude==%f", ((MyFrame*)frame)->m_connection->longitude);
+
     frame->Show( true );
 
     return true;
-}
+} //MyApp:OnInit
+
+
+wxString MyApp::GetCmdLine()
+{
+    wxString s;
+    for(int i=1; i<argc; ++i)
+    {
+        s.Append(argv[i]);
+        s.Append(wxT(" "));
+    }
+    return s;
+} // MyApp::GetCmdLine
+
+
+// ----------------------------------------------------------------------------
+//  debug
+// ----------------------------------------------------------------------------
+void MyApp::LogPlatform()
+{
+    wxPlatformInfo p = wxPlatformInfo::Get();
+    wxLogVerbose(wxT("Platform details:"));
+    wxLogVerbose(wxT(" * CPU Count: %d"), wxThread::GetCPUCount());
+    wxLogVerbose(wxT(" * OS: %s"), wxGetOsDescription().c_str());
+    wxLogVerbose(wxT(" * OS ID: %s"), p.GetOperatingSystemIdName().c_str());
+    wxLogVerbose(wxT(" * OS Family: %s"), p.GetOperatingSystemFamilyName().c_str());
+    wxLogVerbose(wxT(" * OS Version: %d.%d"), p.GetOSMajorVersion(), p.GetOSMinorVersion());
+    wxLogVerbose(wxT(" * Toolkit Version: %d.%d"), p.GetToolkitMajorVersion(), p.GetToolkitMinorVersion());
+    wxLogVerbose(wxT(" * Architecture: %s"), p.GetArchName().c_str());
+    wxLogVerbose(wxT(" * Endianness: %s"), p.GetEndiannessName().c_str());
+    wxLogVerbose(wxT(" * WX ID: %s"), p.GetPortIdName().c_str());
+    wxLogVerbose(wxT(" * WX Version: %d.%d.%d.%d"), wxMAJOR_VERSION, wxMINOR_VERSION, wxRELEASE_NUMBER, wxSUBRELEASE_NUMBER);
+    return;
+} //MyApp::LogPlatform
+
 
 
 OwwlReaderTimer::OwwlReaderTimer(MyFrame* f, unsigned int pollInt) : wxTimer()
 {
     m_pollInterval = pollInt * 1000;
     OwwlReaderTimer::m_frame = f;
-}
+    return;
+} // OwwlReaderTimer::OwwlReaderTimer
  
 void OwwlReaderTimer::Notify()
 {
+    wxLogVerbose("Readertimer:Notify");
 #if 1
     if(NULL != m_frame)
     {
+        wxLogVerbose("Latitude=%3.4f", m_frame->m_connection->latitude);
+        wxLogVerbose("Longitude=%3.4f", m_frame->m_connection->longitude);
+
         if(NULL != m_frame->m_connection)
         {
             int retval = owwl_read(m_frame->m_connection);
             switch(retval)
             {
                 case Owwl_Read_Error:
-                    m_frame->SetStatusText("Protocol error");
+                    wxLogVerbose("Protocol Error");
+                    //m_frame->SetStatusText("Protocol error");
                     break;
                 case Owwl_Read_Disconnect:
+                    wxLogVerbose("Server Disconnect");
                     m_frame->SetStatusText("Server disconnect");
                     sock_close(m_frame->m_s);
                     m_frame->m_s = -1;
                     g_connection = m_frame->m_connection = NULL;
                     break;
                 case Owwl_Read_Again:
-                    m_frame->SetStatusText("Read again");
+                    wxLogVerbose("Read Again");
+                    //m_frame->SetStatusText("Read again");
                     break;
                 case Owwl_Read_Read_And_Decoded:
-                    m_frame->SetStatusText("                  ");
+                    wxLogVerbose("Read And Decode");
+                    //m_frame->SetStatusText("                  ");
                     break;
                 default:
-                    m_frame->SetStatusText("Read default");
+                    wxLogVerbose("Read Default");
+                    //m_frame->SetStatusText("Read default");
                     break;
             }
         }
     }
 #endif
-
-}
+    return;
+} //OwwlReader::Notify
 
 void OwwlReaderTimer::start()
 {
     wxTimer::Start(m_pollInterval);
-}
+    return;
+} // OwwlReader::start
 
 
 
@@ -1464,11 +1484,12 @@ void OwwlReaderTimer::start()
 RenderTimer::RenderTimer(MyCanvas *canvas) : wxTimer()
 {
     RenderTimer::m_canvas = canvas;
-}
+} // RenderTimer c-tor
 
 
 void RenderTimer::Notify()
 {
+    wxLogVerbose("RenderTimer:Notify");
     if(NULL == m_canvas) return;
 
     m_canvas->Refresh();
@@ -1478,12 +1499,12 @@ void RenderTimer::Notify()
     m_canvas->m_auxilliaryFrame->m_grid->ForceRefresh();
 
     return;
-}
+} //RenderTimer::Notify
 
 void RenderTimer::start()
 {
     wxTimer::Start(500);
-}
+} //RenderTimer::start
 
 
 
@@ -1517,6 +1538,9 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
 #else
 #error define your platform
 #endif
+
+   wxLogVerbose("Looking for images in %s", dir);
+
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
       && wxFile::Exists( dir + wxT("top2.jpg")) 
@@ -1533,67 +1557,67 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
     {
         // found image files
         if ( !image.LoadFile( dir + wxString(_T("body.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             body_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("bottom1.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             bottom1_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("bottom2.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             bottom2_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("bottom3.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             bottom3_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("bottom4.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             bottom4_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("bottom5.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             bottom5_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("bottom6.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             bottom6_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("bottom7.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             bottom7_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("bottom8.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             bottom8_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("rh.png"))) )
-            wxLogError(_T("Can't load PNG image"));
+            wxLogVerbose(_T("Can't load PNG image"));
         else
             rh_png = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("top1.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             top1_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("top2.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             top2_jpg = wxBitmap( image );
 
         if ( !image.LoadFile( dir + wxString(_T("top3.jpg"))) )
-            wxLogError(_T("Can't load JPG image"));
+            wxLogVerbose(_T("Can't load JPG image"));
         else
             top3_jpg = wxBitmap( image );
 
@@ -1615,24 +1639,18 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
      }
     else
     {
-        wxArrayString array;
-        array.Add("Can't find Image files in:");
-        array.Add(dir);
-        (void)wxMessageBox( wxJoin(array, '\n'),
-                        "One wire Weather",
-                        wxICON_INFORMATION | wxOK );
-        wxLogWarning(wxT("Can't find image files!"));
+        wxLogVerbose(wxT("Can't find image files!"));
     }
 
     m_counter = 0;
     return;
-}
+} //MyCanvas c-tor
 
 MyCanvas::~MyCanvas()
 {
     m_renderTimer->Stop();
     delete m_renderTimer;
-}
+} //MyCanvas d-tor
 
 void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
 {
@@ -1659,13 +1677,12 @@ void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
     dc.DrawText( str, pt.x, pt.y);
 
     return;
-}
+} //MyCanvas::DrawShadowText
 
 void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 {
     wxPaintDC dc( this );
     PrepareDC( dc );
-    //DoPrepareDC( dc );
     owwl_data *od = NULL;
     int unit;
 #ifdef __WXGTK__
@@ -1701,25 +1718,11 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 {
                     unit = unit_choices[unit_class];
                 }
-#if 0 //WXOWW_SIMULATION
-                speed = 3.5;
-                gust = 99.9;
-                bearing = 180.0;
-#else
-#if 0
-                speed =   od->device_data.wind.speed;
-                gust =    od->device_data.wind.gust;
-                bearing = od->device_data.wind.bearing;
-#else
                 speed =   od->val(od, unit, 0);
                 gust =    od->val(od, unit, 1);
                 bearing = od->val(od, unit, 2);
-#endif
-#endif
-                
                 
                 static int inc_top = 0;
-#if 1
                 if(speed >= 0.0 && speed <= 1.0)
                 {
                     inc_top = 0;
@@ -1735,9 +1738,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                         inc_top = 1;
                     }
                 }
-#else
-                inc_top = 1;
-#endif
 
                 if(inc_top)
                 {
@@ -1750,7 +1750,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                             }
                             m_counter++;
                             break;
-
                         case 1:
                             if (top2_jpg.IsOk())
                             {
@@ -1777,7 +1776,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                 dc.DrawBitmap( top1_jpg, 0, 0 );
                             }
                             break;
-
                         case 1:
                             if (top2_jpg.IsOk())
                             {
@@ -1858,6 +1856,10 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         owwl_unit_name(od, unit, 2)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 60));
             }
+            else
+            {
+                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Wind == NULL");
+            }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Humidity, 0, 0);
             if(NULL != od)
@@ -1871,6 +1873,10 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 180));
             }
+            else
+            {
+                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Humidity == NULL");
+            }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
                                                     OwwlTemp_Thermometer, 0);
@@ -1880,6 +1886,10 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                     od->str(od, linebuf, 128, unit, -1, 0),
                                     owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 125));
+            }
+            else
+            {
+                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temperature == NULL");
             }
 
             dc.SetTextForeground( wxT("YELLOW") );
@@ -1891,6 +1901,10 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                             owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(280, 260));
             }
+            else
+            {
+                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temperature/OwwlTemp_Humidity == NULL");
+            }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Barometer, 0);
             if(NULL != od)
@@ -1900,26 +1914,22 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                             owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(280, 290));
             }
+            else
+            {
+                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temperature/OwwlTemp_Barometer == NULL");
+            }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
             if(NULL != od)
             {
-#if 0
-                dc.SetTextForeground( wxT("BLACK") );
-                dc.DrawText( wxString::Format("BP: %s %s", 
-                                        od->str(od, linebuf, 128, unit, -1, 0),
-                                        owwl_unit_name(od, unit, 0)), 282, 322);
-                dc.SetTextForeground( wxT("YELLOW") );
-                dc.DrawText( wxString::Format("BP: %s %s", 
-                                        od->str(od, linebuf, 128, unit, -1, 0),
-                                        owwl_unit_name(od, unit, 0)), 280, 320);
-#else
                 DrawText(wxString::Format("BP: %s %s", 
                                         od->str(od, linebuf, 128, unit, 3, 0),
                                         owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(280,320));
-
-#endif
+            }
+            else
+            {
+                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Barometer == NULL");
             }
 
             dc.SetTextForeground( wxT("RED") );
@@ -1937,6 +1947,10 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         od->str(od, linebuf, 128, unit, -1, 2),
                                         owwl_unit_name(od, unit, 2)),
                             wxT("YELLOW"), wxT("BLACK"), wxPoint(325, 360));
+            }
+            else
+            {
+                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Rain == NULL");
             }
 
             dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
@@ -1967,6 +1981,8 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                                     + body_jpg.GetHeight());
             }
             m_frame->SetTitle(wxString::Format(wxT("%s"), "Oww")); 
+
+            wxLogVerbose("MyCanvas::OnPaint m_conn==NULL");
         }// if(m_connection)
 
     }// if(m_frame)
@@ -2008,14 +2024,11 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
         //delete gc;
     }
 #endif
+} //MyCanvas::OnPaint
 
 
 
-}
-
-
-
-
+#if 0
 class wxShadowDC:wxDC
 {
 public:
@@ -2045,3 +2058,6 @@ public:
 private:
     wxColour m_shadowColour;
 };
+#endif
+
+
