@@ -766,7 +766,11 @@ MyFrame::MyFrame()
     m_pollInterval = 10;
     m_s = -1;
     m_units = OwwlUnit_Imperial;
+#if 0    
     buff = Owwl_Buffer_Init;
+#else
+    memset(&buff, NULL, sizeof(owwl_buffer));
+#endif
     m_browser = 0;
     m_mapurl = wxEmptyString;
     m_restoreAuxFrame = false;
