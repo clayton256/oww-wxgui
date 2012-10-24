@@ -2026,18 +2026,41 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 #endif
 } //MyCanvas::OnPaint
 
+enum wxShadowDirection
+{
+    wxLeftAndUp,
+    wxRightAndUp,
+    wxDownAndLeft,
+    wxDownAndRight
+};
+enum wxShadowModes
+{
+    wxShadowPixels,
+    wxShadowPercent,
+    wxShadowAnotherWay
+};
 
-
-#if 0
-class wxShadowDC:wxDC
+#if 1
+class wxShadowDC : wxDC
 {
 public:
-    void SetTextShadow(const wxColour & colour)
+    void SetTextShadowOffset(const int & sz, enum wxShadowModes mode = wxShadowPixels)
+    {
+        m_shadowOffset = sz;
+        m_shadowOffsetMode = mode;
+    }
+
+    int GetTextShadowOffset(void)
+    {
+        return m_shadowOffset;
+    }
+
+    void SetTextShadowColour(const wxColour & colour)
     {
         m_shadowColour = colour;
     }
 
-    wxColour GetTextShadow(void)
+    wxColour GetTextShadowColour(void)
     {
         return m_shadowColour;
     }
@@ -2045,9 +2068,27 @@ public:
     void DrawShadowText(wxString str, wxPoint pt)
     {
         wxPoint shadowPt = pt;
-        shadowPt.x = shadowPt.x + 2;
-        shadowPt.y = shadowPt.y + 2;
         wxColour foreColour = GetTextForeground();
+        wxFont f;
+        f.GetPointSize();
+        switch(m_shadowOffsetMode)
+        {
+            case wxShadowPixels:
+                shadowPt.x = shadowPt.x + m_shadowOffset;
+                shadowPt.y = shadowPt.y + m_shadowOffset;
+                break;
+            case wxShadowPercent:
+                {
+                    int offsetPxls = ((float)m_shadowOffset * (float)GetCharHeight() / 100.0);
+                    offsetPxls = (0==offsetPxls)?1:offsetPxls;
+                    shadowPt.x = shadowPt.x + offsetPxls;
+                    shadowPt.y = shadowPt.y + offsetPxls;
+                }
+                break;
+            default:
+                break;
+        }
+
         SetTextForeground(m_shadowColour);
         DrawText(str, shadowPt);
 
@@ -2055,8 +2096,12 @@ public:
         DrawText(str, pt);
     }
     
+
 private:
     wxColour m_shadowColour;
+    int      m_shadowOffset;
+    enum wxShadowDirection m_shadowOffsetDir;
+    enum wxShadowModes m_shadowOffsetMode;
 };
 #endif
 
