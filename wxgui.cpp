@@ -55,6 +55,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+// ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+//ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
 #define sock_error h_errno
@@ -787,7 +791,7 @@ MyFrame::MyFrame()
 #if 0    
     buff = Owwl_Buffer_Init;
 #else
-    memset(&buff, (int)"\0", sizeof(owwl_buffer));
+    memset(&buff, 0, sizeof(owwl_buffer));
 #endif
     m_browser = 0;
     m_mapurl = wxEmptyString;
@@ -916,22 +920,37 @@ int MyFrame::InitServerConnection(void)
 {
     int retval = 0;
     {
+// ifdef HAVE_SYS_UN_H
+  struct sockaddr_un addr_un ;
+  int addr_len;
         struct hostent  *host;
         struct sockaddr *address;
         struct sockaddr_in addr_in;
 
-        memset(&addr_in, sizeof(struct sockaddr_in), 0);
+  if (m_hostname.c_str()[0] == '/') /* AF_LOCAL */
+  {
+//ifdef HAVE_SYS_UN_H
+  memset(&addr_un, 0, sizeof(addr_un)) ;
+
+  addr_un.sun_family = AF_LOCAL ;
+  strcpy(addr_un.sun_path, m_hostname) ;
+  addr_len = sizeof(addr_un.sun_family) + strlen(m_hostname) ;
+  address = (struct sockaddr *) &addr_un ;
+  wxLogVerbose(_("Connecting to LOCAL (UNIX) port: %s\n"), m_hostname);
+  }
+
+        memset(&addr_in, 0, sizeof(struct sockaddr_in));
         bool ipnumaddr = m_hostname.Matches("??.??.??.??");
-        if(false == ipnumaddr)
+        if(false == ipnumaddr) /* ip addr is num */
         {
             host = gethostbyname(m_hostname.c_str()) ;
             if(NULL == host) 
             {
                 wxLogVerbose(wxString::Format("gethostbyname=%d", sock_error),
-                                   "One wire Weather", wxICON_INFORMATION | wxOK);
+                                   _("One wire Weather"), wxICON_INFORMATION | wxOK);
             }
         }
-        else
+        else /* ip addr is name */
         {
             addr_in.sin_addr.s_addr = inet_addr(m_hostname.c_str());
             host = gethostbyaddr((const char *)&addr_in, 
@@ -939,7 +958,7 @@ int MyFrame::InitServerConnection(void)
             if(NULL == host) 
             {
                 wxLogVerbose(wxString::Format("gethostbyaddr=%d", sock_error),
-                                   "One wire Weather", wxICON_INFORMATION | wxOK);
+                                   _("One wire Weather"), wxICON_INFORMATION | wxOK);
             }
         }
         if (NULL != host)
