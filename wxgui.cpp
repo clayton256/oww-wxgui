@@ -143,6 +143,19 @@ public:
     virtual wxLog *CreateLogTarget();
 };
 
+// ----------------------------------------------------------------------------
+// connection class
+// ----------------------------------------------------------------------------
+
+class OwwlConnection
+{
+public:
+    time_t GetDataTime(void){ return m_dataTime;}
+    unsigned int GetInterval(void){ return m_interval;}
+private:
+    time_t m_dataTime;
+    unsigned int m_interval;
+};
 
 
 // ----------------------------------------------------------------------------
@@ -577,26 +590,42 @@ public:
 #ifdef __WXMOTIF__
     void OnMenuToggleUnits( wxCommandEvent &event );
 #endif
-#if 0
-    void OnSetup( wxCommandEvent &event );
-    void OnDevices( wxCommandEvent &event );
-#endif
     void OnQuit( wxCommandEvent &event );
 
-    float GetLatitude(void)
+    float GetOwwlLatitude(void)
     {
         if (NULL == this) return -0.0;
         if (NULL == this->m_connection) return -0.0;
         return this->m_connection->latitude;
     }
-    float GetLongitude(void)
+
+    float GetOwwlLongitude(void)
     {
         if (NULL == this) return -0.0;
         if (NULL == this->m_connection) return -0.0;
         return this->m_connection->longitude;
     }
 
+    int GetOwwlInterval(void)
+    {
+        if (NULL == this) return -0;
+        if (NULL == this->m_connection) return -0;
+        return this->m_connection->interval;
+    }
 
+    int GetOwwlDataTime(void)
+    {
+        if (NULL == this) return -0;
+        if (NULL == this->m_connection) return -0;
+        return this->m_connection->data_time;
+    }
+
+    owwl_conn* GetOwwlConnection(void)
+    {
+        if (NULL == this) return NULL;
+        if (NULL == this->m_connection) return NULL;
+        return this->m_connection;
+    }
 
     owwl_buffer buff;
     
@@ -1162,8 +1191,8 @@ void MyFrame::OnMessages( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
-    float latitude = GetLatitude();
-    float longitude = GetLongitude();
+    float latitude = GetOwwlLatitude();
+    float longitude = GetOwwlLongitude();
     wxLogVerbose("OnMap Latitude=%3.4f", latitude);
     wxLogVerbose("OnMap Longitude=%3.4f", longitude);
 
@@ -1433,8 +1462,8 @@ bool MyApp::OnInit()
 
     wxLogVerbose("cmdln: %s", MyApp::GetCmdLine().c_str());
 
-    wxLogVerbose("latitude==%f", ((MyFrame*)frame)->GetLatitude());
-    wxLogVerbose("longitude==%f", ((MyFrame*)frame)->GetLongitude());
+    wxLogVerbose("latitude==%f", ((MyFrame*)frame)->GetOwwlLatitude());
+    wxLogVerbose("longitude==%f", ((MyFrame*)frame)->GetOwwlLongitude());
 
     frame->Show( true );
 
@@ -1502,13 +1531,13 @@ void OwwlReaderTimer::Notify()
 #if 1
     if(NULL != m_frame)
     {
-        if(NULL != m_frame->m_connection)
+        if(NULL != m_frame->GetOwwlConnection())
         {
-            wxLogVerbose("Latitude=%3.4f", m_frame->GetLatitude());
-            wxLogVerbose("Longitude=%3.4f", m_frame->GetLongitude());
-            wxLogVerbose("interval=%ld:",m_frame->m_connection->interval);
+            wxLogVerbose("Latitude=%3.4f", m_frame->GetOwwlLatitude());
+            wxLogVerbose("Longitude=%3.4f", m_frame->GetOwwlLongitude());
+            wxLogVerbose("interval=%d:", m_frame->m_connection->interval);
 
-            int retval = owwl_read(m_frame->m_connection);
+            int retval = owwl_read(m_frame->GetOwwlConnection());
             switch(retval)
             {
                 case Owwl_Read_Error:
@@ -1528,11 +1557,7 @@ void OwwlReaderTimer::Notify()
                     wxLogVerbose("Read Again");
                     retval = owwl_tx_poll_servers(m_frame->m_connection);
                     if(-1==retval)wxLogVerbose("owwl_tx_poll_servers failed");
-                    #ifdef _WIN32
-                        Sleep(10) ; /* Sleep for 10 ms */
-                    #else
-                        usleep(10000) ; /* Sleep for 10 ms */
-                    #endif
+                    wxMilliSleep(10); /* Sleep for 10 ms */
                     if((last != 0) 
                         && (time(NULL)>(last+m_frame->m_connection->interval*2+1)))
                     {
@@ -2177,7 +2202,8 @@ public:
                 break;
             case wxShadowPercent:
                 {
-                    int offsetPxls = ((float)m_shadowOffset * (float)GetCharHeight() / 100.0);
+                    int offsetPxls = ((float)m_shadowOffset * 
+                                      (float)GetCharHeight() / 100.0);
                     offsetPxls = (0==offsetPxls)?1:offsetPxls;
                     shadowPt.x = shadowPt.x + offsetPxls;
                     shadowPt.y = shadowPt.y + offsetPxls;
@@ -2193,7 +2219,6 @@ public:
         SetTextForeground(foreColour);
         DrawText(str, pt);
     }
-    
 
 private:
     wxColour m_shadowColour;
