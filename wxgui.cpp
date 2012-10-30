@@ -787,7 +787,7 @@ MyFrame::MyFrame()
 #if 0    
     buff = Owwl_Buffer_Init;
 #else
-    memset(&buff, NULL, sizeof(owwl_buffer));
+    memset(&buff, (int)"\0", sizeof(owwl_buffer));
 #endif
     m_browser = 0;
     m_mapurl = wxEmptyString;
