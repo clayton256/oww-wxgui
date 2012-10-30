@@ -252,8 +252,9 @@ public:
     OwwlReaderTimer(MyFrame * canvas, unsigned int pollInt = 9);
     void Notify();
     void start();
-
+    unsigned long GetInterval(void);
 private:
+    unsigned long m_interval;
     unsigned int m_pollInterval;
     MyFrame * m_frame;
 };
@@ -396,20 +397,20 @@ int MyAuxilliaryFrame::InitPopulateCells()
                         int unit_class, unit;
                         linebuf[0] = '\0';
                         namebuff[0] = '\0';
-                        unit_class = owwl_unit_class(data, arg) ;
+                        unit_class = owwl_unit_class(data, arg);
 
-                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
+                        if((unit_class>=0) && (unit_class<OWWL_UNIT_CLASS_LIMIT))
                             unit = unit_choices[unit_class] ;
 
                         m_grid->AppendRows();
                         m_grid->SetCellValue(owwl_name(&(data[i]), namebuff, 
                                                 128, &length, 0), cntr, 0);
                         m_grid->SetCellValue(owwl_arg_stem(
-                                        (owwl_device_type_enum) data[i].device_type, 
-                                        data[i].device_subtype, arg),
+                                    (owwl_device_type_enum)data[i].device_type,
+                                    data[i].device_subtype, arg),
                                 cntr, 1);
                         cntr++;
-                        arg = owwl_next_arg(&(data[i]), arg) ;
+                        arg = owwl_next_arg(&(data[i]), arg);
                     }
                 }
             }
@@ -442,7 +443,7 @@ int MyAuxilliaryFrame::UpdateCellsUnits()
                         int unit_class, unit;
                         unit_class = owwl_unit_class(data, arg) ;
 
-                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT))
+                        if((unit_class>=0) && (unit_class<OWWL_UNIT_CLASS_LIMIT))
                             unit = unit_choices[unit_class];
 
                         m_grid->SetCellValue(owwl_unit_name(&(data[i]), unit, arg),
@@ -480,24 +481,26 @@ int MyAuxilliaryFrame::PopulateCellVals(void)
                     {
                         linebuf[0] = '\0';
                         int unit_class, unit;
-                        unit_class = owwl_unit_class(data, arg) ;
+                        unit_class = owwl_unit_class(data, arg);
 
-                        if ((unit_class >= 0) && (unit_class < OWWL_UNIT_CLASS_LIMIT)) 
+                        if ((unit_class>=0) && (unit_class<OWWL_UNIT_CLASS_LIMIT))
                             unit = unit_choices[unit_class] ;
 
                         wxString old_val = m_grid->GetCellValue(cntr, 2);
-                        wxString new_val = (data[i]).str(&(data[i]), linebuf, 128, unit, -1, arg);
+                        wxString new_val = (data[i]).str(&(data[i]), linebuf, 128,
+                                                           unit, -1, arg);
                         if(false == old_val.IsSameAs(new_val))
                         {
-                            m_grid->SetCellTextColour(cntr, 2, wxT("RED")); 
+                            m_grid->SetCellTextColour(cntr, 2, wxT("RED"));
                         }
                         else
                         {
-                            m_grid->SetCellTextColour(cntr, 2, m_grid->GetDefaultCellTextColour());
+                            m_grid->SetCellTextColour(cntr, 2,
+                                              m_grid->GetDefaultCellTextColour());
                         }
                         m_grid->SetCellValue(new_val, cntr, 2);
                         cntr++;
-                        arg = owwl_next_arg(&(data[i]), arg) ;
+                        arg = owwl_next_arg(&(data[i]), arg);
                     }
                 }
             }
@@ -576,24 +579,39 @@ public:
 #endif
     void OnQuit( wxCommandEvent &event );
 
+    float GetLatitude(void)
+    {
+        if (NULL == this) return -0.0;
+        if (NULL == this->m_connection) return -0.0;
+        return this->m_connection->latitude;
+    }
+    float GetLongitude(void)
+    {
+        if (NULL == this) return -0.0;
+        if (NULL == this->m_connection) return -0.0;
+        return this->m_connection->longitude;
+    }
+
+
+
     owwl_buffer buff;
     
-    wxLogWindow       *m_logWindow;
-    wxMenu            *menuImage;
-    wxMenu            *subMenu;
-    MyCanvas          *m_canvas;
-    wxStatusBar       *m_statusbar;
-    wxString           m_hostname;
-    int                m_port;
-    unsigned int       m_pollInterval;
-    SOCKET             m_s;
-    owwl_conn         *m_connection;
-    wxString           m_mapurl;
-    bool               m_launchAtStart;
-    int                m_units;
-    bool               m_animateDisplay;
-    int                m_browser;
-    bool               m_restoreAuxFrame;
+    wxLogWindow   *m_logWindow;
+    wxMenu        *menuImage;
+    wxMenu        *subMenu;
+    MyCanvas      *m_canvas;
+    wxStatusBar   *m_statusbar;
+    wxString       m_hostname;
+    int            m_port;
+    unsigned int   m_pollInterval;
+    SOCKET         m_s;
+    owwl_conn     *m_connection;
+    wxString       m_mapurl;
+    bool           m_launchAtStart;
+    int            m_units;
+    bool           m_animateDisplay;
+    int            m_browser;
+    bool           m_restoreAuxFrame;
 private:
     enum
     {
@@ -685,7 +703,7 @@ print_data(owwl_conn * /*conn*/, owwl_data *data, void * /*user_data*/)
             );
 */
 #endif
-        arg = owwl_next_arg(data, arg) ;
+        arg = owwl_next_arg(data, arg);
     }
   }
 
@@ -702,10 +720,10 @@ void MyFrame::changeUnits(int units)
 
     if(NULL != subMenu)
     {
-        subMenu->Check(Menu_SubMenu_Radio0, (m_units==OwwlUnit_Metric)?true:false);
-        subMenu->Check(Menu_SubMenu_Radio1, (m_units==OwwlUnit_Imperial)?true:false);
-        subMenu->Check(Menu_SubMenu_Radio2, (m_units==OwwlUnit_Alt1)?true:false);
-        subMenu->Check(Menu_SubMenu_Radio3, (m_units==OwwlUnit_Alt2)?true:false);
+        subMenu->Check(Menu_SubMenu_Radio0,(m_units==OwwlUnit_Metric)?true:false);
+        subMenu->Check(Menu_SubMenu_Radio1,(m_units==OwwlUnit_Imperial)?true:false);
+        subMenu->Check(Menu_SubMenu_Radio2,(m_units==OwwlUnit_Alt1)?true:false);
+        subMenu->Check(Menu_SubMenu_Radio3,(m_units==OwwlUnit_Alt2)?true:false);
     }
 
     return;
@@ -783,7 +801,7 @@ MyFrame::MyFrame()
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
         (void)wxLogVerbose(_("The Winsock dll not found!"),
-                               "One wire Weather", wxICON_INFORMATION | wxOK );
+                           "One wire Weather", wxICON_INFORMATION | wxOK );
     }
     /* Confirm that the WinSock DLL supports 2.2.*/
     /* Note that if the DLL supports versions greater    */
@@ -795,8 +813,8 @@ MyFrame::MyFrame()
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
         (void)wxLogVerbose(wxString::Format("Winsock dll is version %u.%u",
-                                  LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)),
-                                  "One wire Weather", wxICON_INFORMATION | wxOK );
+                           LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)),
+                           "One wire Weather", wxICON_INFORMATION | wxOK );
         WSACleanup();
     }
 #endif
@@ -819,7 +837,7 @@ MyFrame::MyFrame()
     menuImage->Append(ID_AUXILLIARY, wxT("Auxilary"), "See other device values");
 #ifdef __WXMOTIF__
     // Motif doesn't do submenus, soooo....
-    menuImage->Append(ID_TOGGLEMENU, wxT("Toggle Units"), "Swap Meteric and Imperial");
+    menuImage->Append(ID_TOGGLEMENU, wxT("Toggle Units"), "Swap Units");
 #else
     subMenu = new wxMenu;
     subMenu->AppendRadioItem(Menu_SubMenu_Radio0, wxT("Metric"), wxT("Metric"));
@@ -876,12 +894,14 @@ MyFrame::MyFrame()
 
     if(0 == InitServerConnection())
     {
-        SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, (int)m_port));
+        SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, 
+                                                                 (int)m_port));
     }
     
     if(true == m_restoreAuxFrame)
     {
-        m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, "Auxilliary Data");
+        m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, 
+                                                          _("Auxilliary Data"));
         m_canvas->m_auxilliaryFrame->Show();
     }
     return;
@@ -904,24 +924,26 @@ int MyFrame::InitServerConnection(void)
             if(NULL == host) 
             {
                 wxLogVerbose(wxString::Format("gethostbyname=%d", sock_error),
-                                   "One wire Weather", wxICON_INFORMATION | wxOK );
+                                   "One wire Weather", wxICON_INFORMATION | wxOK);
             }
         }
         else
         {
             addr_in.sin_addr.s_addr = inet_addr(m_hostname.c_str());
-            host = gethostbyaddr((const char *)&addr_in, sizeof(struct sockaddr_in), AF_INET);
+            host = gethostbyaddr((const char *)&addr_in, 
+                                        sizeof(struct sockaddr_in), AF_INET);
             if(NULL == host) 
             {
                 wxLogVerbose(wxString::Format("gethostbyaddr=%d", sock_error),
-                                   "One wire Weather", wxICON_INFORMATION | wxOK );
+                                   "One wire Weather", wxICON_INFORMATION | wxOK);
             }
         }
         if (NULL != host)
         {
             addr_in.sin_family = AF_INET;
             addr_in.sin_port   = htons(m_port);
-            memcpy(&addr_in.sin_addr, host->h_addr_list[0], sizeof(addr_in.sin_addr));
+            memcpy(&addr_in.sin_addr, host->h_addr_list[0], 
+                                                        sizeof(addr_in.sin_addr));
             address = (struct sockaddr *) &addr_in;
             int addr_len = sizeof(addr_in);
 
@@ -948,12 +970,13 @@ int MyFrame::InitServerConnection(void)
                         case Owwl_Read_Again:
                             wxLogVerbose("Read again");
                             owwl_tx_poll_servers(m_connection);
-                            if(-1==retval)wxLogVerbose("owwl_tx_poll_servers failed");
+                            if(-1==retval)wxLogVerbose("owwl_tx_poll_serve failed");
                             retval = -1;
                             break;
                         case Owwl_Read_Read_And_Decoded:
                             wxLogVerbose("Read & Decode");
-                            retval = owwl_tx_build(m_connection, OWW_TRX_MSG_WSDATA, &(buff));
+                            retval = owwl_tx_build(m_connection, OWW_TRX_MSG_WSDATA,
+                                                                        &(buff));
                             if(-1==retval)wxLogVerbose("owwl_tx_build failed");
                             retval = owwl_tx(m_connection, &(buff));
                             if(-1==retval)wxLogVerbose("owwl_tx failed");
@@ -1059,7 +1082,8 @@ void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
     info.AddDeveloper("\nThe wxWidgets team! - Thank You!");
     info.SetWebSite(_("www.mark-clayton.com/oww-wxgui"), _("oww-wxgui website"));
     info.SetVersion(g_VersionStr);
-    info.SetCopyright(_T("(C) 2012 Mark Clayton <mark_clayton@users.sourceforge.net>"));
+    info.SetCopyright(_T("(C) 2012 Mark Clayton \
+                                        <mark_clayton@users.sourceforge.net>"));
 
     wxAboutBox(info);
     
@@ -1099,7 +1123,8 @@ private:
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
     m_restoreAuxFrame = true;
-    m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, "Auxilliary Data");
+    m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas,
+                                                        _("Auxilliary Data"));
     m_canvas->m_auxilliaryFrame->Show();
 } //MyFrame::OnAuxilliary
 
@@ -1114,21 +1139,16 @@ void MyFrame::OnMessages( wxCommandEvent &WXUNUSED(event) )
 
 void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
-    if(NULL != m_connection)
-    {
-        wxLogVerbose("OnMap Latitude=%3.4f", m_connection->latitude);
-        wxLogVerbose("OnMap Longitude=%3.4f", m_connection->longitude);
+    float latitude = GetLatitude();
+    float longitude = GetLongitude();
+    wxLogVerbose("OnMap Latitude=%3.4f", latitude);
+    wxLogVerbose("OnMap Longitude=%3.4f", longitude);
 
-        char command[2048];
-        sprintf(command, "open /Applications/Safari.app/Contents/MacOS/Safari " + 
-                                 m_mapurl, m_connection->latitude, m_connection->longitude);
-        wxArrayString output;
-        wxExecute(wxString(command), output);
-    }
-    else
-    {
-        wxLogVerbose("Can not map a server location if you're not connected to a server");
-    }
+    char command[2048];
+    sprintf(command, "open /Applications/Safari.app/Contents/MacOS/Safari " + 
+                             m_mapurl, latitude, longitude);
+    wxArrayString output;
+    wxExecute(wxString(command), output);
 } //MyFrame::OnMap
 
 
@@ -1207,7 +1227,7 @@ MySettingsDialog::MySettingsDialog(wxWindow* win)
 {
     SetExtraStyle(wxDIALOG_EX_CONTEXTHELP|wxWS_EX_VALIDATE_RECURSIVELY);
 
-    Create(win, wxID_ANY, _("Preferences"), wxDefaultPosition, wxSize(500,300), 
+    Create(win, wxID_ANY, _("Preferences"), wxDefaultPosition, wxSize(500,300),
                                   wxDEFAULT_DIALOG_STYLE);
 
     // If using a toolbook, also follow Mac style and don't create buttons
@@ -1242,23 +1262,23 @@ wxPanel* MySettingsDialog::CreateServerSettingsPage(wxWindow* parent)
 
     // Connect to server on startup
     wxBoxSizer* itemSizer = new wxBoxSizer( wxVERTICAL );
-    serverText = new wxTextCtrl(panel, ID_SERVER_TEXT, wxEmptyString, wxDefaultPosition, 
-                                wxSize(300, -1), wxTE_LEFT);
+    serverText = new wxTextCtrl(panel, ID_SERVER_TEXT, wxEmptyString, 
+                                    wxDefaultPosition, wxSize(300, -1), wxTE_LEFT);
     serverText->SetFocus();
-    portSpin = new wxSpinCtrl(panel, ID_PORT_SPIN, wxEmptyString, wxDefaultPosition, 
-                                wxSize(100, -1), wxSP_ARROW_KEYS, 7000, 65500, 8899);
+    portSpin = new wxSpinCtrl(panel, ID_PORT_SPIN, wxEmptyString, wxDefaultPosition,
+                               wxSize(100, -1), wxSP_ARROW_KEYS, 7000, 65500, 8899);
     pollSpin = new wxSpinCtrl(panel, ID_POLL_SPIN, wxEmptyString, wxDefaultPosition,
                                 wxSize(50, -1), wxSP_ARROW_KEYS, 1, 65, 5);
-    launchAtStart = new wxCheckBox(panel, ID_LAUNCH_CHECK, _("Connect on startup"), 
+    launchAtStart = new wxCheckBox(panel, ID_LAUNCH_CHECK, _("Connect on startup"),
                                 wxDefaultPosition, wxDefaultSize);
     itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Server:")), 0,
                                 wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(serverText, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Port : ")), 0, 
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Port:")), 0, 
                                 wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(portSpin, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
-    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Poll Interval (seconds) : ")), 0, 
-                                wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_STATIC, _("Poll Interval (sec):")),
+                                0, wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(pollSpin, 0, wxALL|wxALIGN_CENTER_VERTICAL, 2);
     itemSizer->Add(launchAtStart, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     topSizer->Add(itemSizer, 1, wxGROW|wxALIGN_CENTRE|wxALL, 5 );
@@ -1274,20 +1294,22 @@ wxPanel* MySettingsDialog::CreateDisplaySettingsPage(wxWindow* parent)
     wxBoxSizer *topSizer = new wxBoxSizer( wxVERTICAL );
     wxBoxSizer *itemSizer = new wxBoxSizer( wxVERTICAL );
 
-    itemSizer->Add(new wxStaticText(panel, wxID_ANY, _("Units:")), 0, wxALIGN_CENTER_VERTICAL, 5);
+    itemSizer->Add(new wxStaticText(panel, wxID_ANY, _("Units:")), 0,
+                                                    wxALIGN_CENTER_VERTICAL, 5);
     // Display Units: Metric, Imperial, Alt 1, Alt 2
     wxArrayString unitChoices;
     unitChoices.Add(wxT("Metric"));
     unitChoices.Add(wxT("Imperial"));
     unitChoices.Add(wxT("Alt 1"));
     unitChoices.Add(wxT("Alt 2"));
-    unitsChoice = new wxChoice(panel, ID_UNITS_CHOICE, wxDefaultPosition, 
+    unitsChoice = new wxChoice(panel, ID_UNITS_CHOICE, wxDefaultPosition,
                                wxDefaultSize, unitChoices);
     unitsChoice->SetSelection(1);
     unitsChoice->SetFocus();
-    animateDisplay = new wxCheckBox(panel, ID_ANIMATE_CHECK, _("Animate"), 
+    animateDisplay = new wxCheckBox(panel, ID_ANIMATE_CHECK, _("Animate"),
                                wxDefaultPosition, wxDefaultSize);
-    restoreAuxFrame = new wxCheckBox(panel, ID_RESTOREAUX_CHECK, _("Restore Auxilliary Window"), 
+    restoreAuxFrame = new wxCheckBox(panel, ID_RESTOREAUX_CHECK,
+                                _("Restore Auxilliary Window"),
                                wxDefaultPosition, wxDefaultSize);
     itemSizer->Add(unitsChoice, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
     itemSizer->Add(animateDisplay, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
@@ -1307,7 +1329,8 @@ wxPanel* MySettingsDialog::CreateLaunchSettingsPage(wxWindow* parent)
     wxBoxSizer *topSizer = new wxBoxSizer( wxVERTICAL );
     wxBoxSizer *item0 = new wxBoxSizer( wxVERTICAL );
 
-    wxStaticBox* staticBox3 = new wxStaticBox(panel, wxID_ANY, _("Browser Options:"));
+    wxStaticBox* staticBox3 = new wxStaticBox(panel, wxID_ANY, 
+                                                        _("Browser Options:"));
     wxBoxSizer* styleSizer = new wxStaticBoxSizer( staticBox3, wxVERTICAL );
     item0->Add(styleSizer, 1, wxGROW|wxALL, 1);
     wxBoxSizer* itemSizer2 = new wxBoxSizer( wxVERTICAL );
@@ -1321,12 +1344,12 @@ wxPanel* MySettingsDialog::CreateLaunchSettingsPage(wxWindow* parent)
     browserChoices.Add(wxT("Chrome"));
     browserChoices.Add(wxT("Lynx"));
     browserChoices.Add(wxT("Netscape"));
-    browserChoice = new wxChoice(panel, ID_BROWSER_CHOICE, wxDefaultPosition, 
+    browserChoice = new wxChoice(panel, ID_BROWSER_CHOICE, wxDefaultPosition,
                                  wxDefaultSize, browserChoices);
     browserChoice->SetSelection(1);
     browserChoice->SetFocus();
-    urlCmdText = new wxTextCtrl(panel, ID_URLCMD_TEXT, wxEmptyString, wxDefaultPosition, 
-                                wxSize(400, -1), wxTE_LEFT);
+    urlCmdText = new wxTextCtrl(panel, ID_URLCMD_TEXT, wxEmptyString, 
+                        wxDefaultPosition, wxSize(400, -1), wxTE_LEFT);
 
     itemSizer2->Add(new wxStaticText(panel, wxID_ANY, _("Browser:")), 0, 
                                 wxALIGN_CENTER_VERTICAL, 2);
@@ -1387,8 +1410,8 @@ bool MyApp::OnInit()
 
     wxLogVerbose("cmdln: %s", MyApp::GetCmdLine().c_str());
 
-    wxLogVerbose("latitude==%f", ((MyFrame*)frame)->m_connection->latitude);
-    wxLogVerbose("longitude==%f", ((MyFrame*)frame)->m_connection->longitude);
+    wxLogVerbose("latitude==%f", ((MyFrame*)frame)->GetLatitude());
+    wxLogVerbose("longitude==%f", ((MyFrame*)frame)->GetLongitude());
 
     frame->Show( true );
 
@@ -1419,12 +1442,15 @@ void MyApp::LogPlatform()
     wxLogVerbose(wxT(" * OS: %s"), wxGetOsDescription().c_str());
     wxLogVerbose(wxT(" * OS ID: %s"), p.GetOperatingSystemIdName().c_str());
     wxLogVerbose(wxT(" * OS Family: %s"), p.GetOperatingSystemFamilyName().c_str());
-    wxLogVerbose(wxT(" * OS Version: %d.%d"), p.GetOSMajorVersion(), p.GetOSMinorVersion());
-    wxLogVerbose(wxT(" * Toolkit Version: %d.%d"), p.GetToolkitMajorVersion(), p.GetToolkitMinorVersion());
+    wxLogVerbose(wxT(" * OS Version: %d.%d"), p.GetOSMajorVersion(), 
+                                                            p.GetOSMinorVersion());
+    wxLogVerbose(wxT(" * Toolkit Version: %d.%d"), p.GetToolkitMajorVersion(), 
+                                                        p.GetToolkitMinorVersion());
     wxLogVerbose(wxT(" * Architecture: %s"), p.GetArchName().c_str());
     wxLogVerbose(wxT(" * Endianness: %s"), p.GetEndiannessName().c_str());
     wxLogVerbose(wxT(" * WX ID: %s"), p.GetPortIdName().c_str());
-    wxLogVerbose(wxT(" * WX Version: %d.%d.%d.%d"), wxMAJOR_VERSION, wxMINOR_VERSION, wxRELEASE_NUMBER, wxSUBRELEASE_NUMBER);
+    wxLogVerbose(wxT(" * WX Version: %d.%d.%d.%d"), wxMAJOR_VERSION, 
+                        wxMINOR_VERSION, wxRELEASE_NUMBER, wxSUBRELEASE_NUMBER);
     return;
 } //MyApp::LogPlatform
 
@@ -1436,18 +1462,29 @@ OwwlReaderTimer::OwwlReaderTimer(MyFrame* f, unsigned int pollInt) : wxTimer()
     OwwlReaderTimer::m_frame = f;
     return;
 } // OwwlReaderTimer::OwwlReaderTimer
- 
+
+
+
+unsigned long OwwlReaderTimer::GetInterval(void)
+{
+    return m_interval;
+} // OwwlReaderTimer::GetInterval
+
+
 void OwwlReaderTimer::Notify()
 {
+    static time_t last = 0;
+
     wxLogVerbose("Readertimer:Notify");
 #if 1
     if(NULL != m_frame)
     {
-        wxLogVerbose("Latitude=%3.4f", m_frame->m_connection->latitude);
-        wxLogVerbose("Longitude=%3.4f", m_frame->m_connection->longitude);
-
         if(NULL != m_frame->m_connection)
         {
+            wxLogVerbose("Latitude=%3.4f", m_frame->GetLatitude());
+            wxLogVerbose("Longitude=%3.4f", m_frame->GetLongitude());
+            wxLogVerbose("interval=%ld:",m_frame->m_connection->interval);
+
             int retval = owwl_read(m_frame->m_connection);
             switch(retval)
             {
@@ -1462,20 +1499,38 @@ void OwwlReaderTimer::Notify()
                     sock_close(m_frame->m_s);
                     m_frame->m_s = -1;
                     g_connection = m_frame->m_connection = NULL;
+                    last = time(NULL);
                     break;
                 case Owwl_Read_Again:
                     wxLogVerbose("Read Again");
                     retval = owwl_tx_poll_servers(m_frame->m_connection);
                     if(-1==retval)wxLogVerbose("owwl_tx_poll_servers failed");
+                    #ifdef _WIN32
+                        Sleep(10) ; /* Sleep for 10 ms */
+                    #else
+                        usleep(10000) ; /* Sleep for 10 ms */
+                    #endif
+                    if((last != 0) 
+                        && (time(NULL)>(last+m_frame->m_connection->interval*2+1)))
+                    {
+                        wxLogVerbose("Timeout");
+                        //check_conn(conn) ;
+                        last = time(NULL);
+                    }
                     break;
                 case Owwl_Read_Read_And_Decoded:
-                    wxLogVerbose("Read And Decode");
-                    retval = owwl_tx_build(m_frame->m_connection, OWW_TRX_MSG_WSDATA, 
-                                           &(m_frame->buff));
+                {
+                    wxDateTime dataTime;
+                    dataTime = wxDateTime(m_frame->m_connection->data_time);
+                    wxLogVerbose("Read And Decode %s", dataTime.FormatTime());
+                    retval = owwl_tx_build(m_frame->m_connection, 
+                                    OWW_TRX_MSG_WSDATA, &(m_frame->buff));
                     if(-1==retval)wxLogVerbose("owwl_tx_build failed");
                     retval = owwl_tx(m_frame->m_connection, &(m_frame->buff));
                     if(-1==retval)wxLogVerbose("owwl_tx failed");
+                    last = time(NULL);
                     break;
+                }
                 default:
                     wxLogVerbose("Read Default");
                     break;
@@ -1507,7 +1562,7 @@ RenderTimer::RenderTimer(MyCanvas *canvas) : wxTimer()
 
 void RenderTimer::Notify()
 {
-    wxLogVerbose("RenderTimer:Notify");
+    //wxLogVerbose("RenderTimer:Notify");
     if(NULL == m_canvas) return;
 
     m_canvas->Refresh();
@@ -1911,7 +1966,8 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
 
             dc.SetTextForeground( wxT("YELLOW") );
-            od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Humidity, 0);
+            od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
+                                                            OwwlTemp_Humidity, 0);
             if(NULL != od)
             {
                 DrawText( wxString::Format("Trh: %s %s", 
@@ -1921,10 +1977,11 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             else
             {
-                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temperature/OwwlTemp_Humidity == NULL");
+                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temp/Humidity==NULL");
             }
 
-            od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, OwwlTemp_Barometer, 0);
+            od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
+                                                            OwwlTemp_Barometer, 0);
             if(NULL != od)
             {
                 DrawText( wxString::Format("Tb: %s %s", 
@@ -1934,7 +1991,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             else
             {
-                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temperature/OwwlTemp_Barometer == NULL");
+                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temp/Barometer == NULL");
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
