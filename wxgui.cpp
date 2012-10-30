@@ -803,7 +803,11 @@ MyFrame::~MyFrame()
 MyFrame::MyFrame()
     : wxFrame( (wxFrame *)NULL, ID_MAIN_FRAME, wxT("oww-wxgui"), 
                 wxPoint(20, 20), 
+#ifdef __WXGTK__
+                wxSize(474, 441+40),
+#else
                 wxSize(474, 441),
+#endif
                 wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)
               )
 {
@@ -907,16 +911,16 @@ MyFrame::MyFrame()
     SetStatusWidths( 2, widths );
 
     m_config->SetPath(_T("/MainFrame"));
-    // restore frame position and size
+    // restore frame position
     int x = m_config->Read(_T("x"), 50);
     int y = m_config->Read(_T("y"), 50);
     int w, h;
     GetClientSize(&w, &h);
     w = m_config->Read(_T("w"), w);
     h = m_config->Read(_T("h"), h);
-    if(0 > w || 0 > h)
+    if(0 > x || 0 > y) // if upper left coner is off screen, move to 10,10
     {
-        w = h = 10;
+        x = y = 10;
     }
     Move(x, y);
 
