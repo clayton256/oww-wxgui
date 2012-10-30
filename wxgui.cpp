@@ -895,7 +895,7 @@ MyFrame::MyFrame()
     }
     Move(x, y);
 
-    m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(474,441) );
+    m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(w,h) );
     Show();
 
     m_canvas->m_renderTimer = new RenderTimer(m_canvas);
