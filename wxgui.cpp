@@ -613,11 +613,12 @@ public:
         return this->m_connection->interval;
     }
 
-    int GetOwwlDataTime(void)
+    time_t GetOwwlDataTime(void)
     {
         if (NULL == this) return -0;
         if (NULL == this->m_connection) return -0;
-        return this->m_connection->data_time;
+        return this->m_connection->data_time
+              +this->m_connection->data_time_usec;
     }
 
     owwl_conn* GetOwwlConnection(void)
@@ -746,7 +747,7 @@ print_data(owwl_conn * /*conn*/, owwl_data *data, void * /*user_data*/)
 void MyFrame::changeUnits(int units)
 {
     int i;
-    for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
+    for (i=0; i<1000 /*OWWL_UNIT_CLASS_LIMIT*/; ++i)
     {
         unit_choices[i] = units;
     }
@@ -930,7 +931,7 @@ MyFrame::MyFrame()
     m_canvas->m_renderTimer = new RenderTimer(m_canvas);
     m_canvas->m_renderTimer->start();
 
-    m_readerTimer = new OwwlReaderTimer(this);
+    m_readerTimer = new OwwlReaderTimer(this, m_pollInterval);
     m_readerTimer->start();
 
     if(0 == InitServerConnection())
@@ -1573,7 +1574,7 @@ void OwwlReaderTimer::Notify()
                 case Owwl_Read_Read_And_Decoded:
                 {
                     wxDateTime dataTime;
-                    dataTime = wxDateTime(m_frame->m_connection->data_time);
+                    dataTime = wxDateTime(m_frame->GetOwwlDataTime());
                     wxLogVerbose("Read And Decode %s", dataTime.FormatTime());
                     retval = owwl_tx_build(m_frame->m_connection, 
                                     OWW_TRX_MSG_WSDATA, &(m_frame->buff));
@@ -1599,6 +1600,7 @@ void OwwlReaderTimer::Notify()
 
 void OwwlReaderTimer::start()
 {
+    wxLogVerbose("Poll Interval %d", m_pollInterval);
     wxTimer::Start(m_pollInterval);
     return;
 } // OwwlReader::start
@@ -2089,6 +2091,8 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 
             wxString now = wxNow ();
             m_frame->SetStatusText(now, 1);
+            //wxDateTime dataTime = wxDateTime(m_frame->GetOwwlDataTime());
+            //m_frame->SetStatusText(dataTime.FormatTime(), 1);
         }
         else
         {
