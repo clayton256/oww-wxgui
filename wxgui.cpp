@@ -55,6 +55,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/ioctl.h>
 // ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 //ifdef HAVE_UNISTD_H
@@ -63,6 +64,7 @@
 #include <sys/time.h>
 #define sock_error h_errno
 #define sock_close close
+#define IOCTL(s,c,a) ioctl(s,c,a)
 #else
 #include <windows.h>
 #include <winsock.h>
@@ -70,6 +72,7 @@
 #define lround(num) ( (long)(num > 0 ? num + 0.5 : ceil(num - 0.5)) )
 #define sock_error WSAGetLastError()
 #define sock_close _close
+#define IOCTL(s,c,a) ioctlsocket(s,c, (long *) a)
 #endif
 
 // app include
@@ -744,6 +747,41 @@ print_data(owwl_conn * /*conn*/, owwl_data *data, void * /*user_data*/)
   return 0 ;
 }
 
+class Coordinate
+{
+public:
+   Coordinate(double d);
+
+   double getDec(void);
+   int getDeg(void) { return m_deg; };
+   int getMin(void) { return m_min;} ;
+   int getSec(void) { return m_sec; };
+   char getDir(void) { return m_dir; };
+   double getRad(void) { return m_rad; };
+
+private:
+   double m_dec;
+   int m_deg;
+   int m_min;
+   int m_sec;
+   char m_dir;
+   double m_rad;
+};
+
+Coordinate::Coordinate(double val)
+{
+    m_dec = val;
+    m_dir = (0>m_dec)?-1:1;
+    m_deg = m_dec * (double)m_dir;
+    m_deg = floor(m_deg);
+    double minsec = ((m_dec * m_dir) - (double)m_deg) * 60.0;
+    m_min = floor(minsec);
+    m_sec = round((minsec - (double)m_min) * 60.0);
+    m_rad = -0.0;
+    return;
+}
+
+
 void MyFrame::changeUnits(int units)
 {
     int i;
@@ -970,7 +1008,7 @@ int MyFrame::InitServerConnection(void)
   strcpy(addr_un.sun_path, m_hostname) ;
   addr_len = sizeof(addr_un.sun_family) + strlen(m_hostname) ;
   address = (struct sockaddr *) &addr_un ;
-  wxLogVerbose(_("Connecting to LOCAL (UNIX) port: %s\n"), m_hostname);
+  wxLogVerbose(wxString::Format(wxT("Connecting to LOCAL (UNIX) port: %s\n"), m_hostname));
   }
 
         memset(&addr_in, 0, sizeof(struct sockaddr_in));
@@ -1010,6 +1048,9 @@ int MyFrame::InitServerConnection(void)
                 g_connection = m_connection = owwl_new_conn(m_s, NULL);
                 if (connect(m_s, address, addr_len) == 0)
                 {
+                    /* Mark the socket as non-blocking */
+                    unsigned long a = 1L;
+                    IOCTL(m_s, FIONBIO, &a);
                     int retval = owwl_read(m_connection);
                     switch(retval)
                     {
@@ -1467,6 +1508,20 @@ bool MyApp::OnInit()
 
     wxLogVerbose("cmdln: %s", MyApp::GetCmdLine().c_str());
 
+    {
+        float lat = ((MyFrame*)frame)->GetOwwlLatitude();
+        float lon = ((MyFrame*)frame)->GetOwwlLongitude();
+        Coordinate Lat = Coordinate(lat);
+        Coordinate Lon = Coordinate(lon);
+        //wxString strLatLon =  wxString::Format(wxT("%2.5f%c %3.5f%c"),
+        //                     (0>lat)?lat*-1:lat, (0>lat)?'S':'N', 
+        //                     (0>lon)?lon*-1:lon, (0>lon)?'W':'E'); 
+        wxString strLatLon =  wxString::Format(wxT("%d\370%d\"%d\'%c/%d\370%d\"%d\'%c"),
+                             Lat.getDeg(), Lat.getMin(), Lat.getSec(), (0>Lat.getDir())?'S':'N', 
+                             Lon.getDeg(), Lon.getMin(), Lon.getSec(), (0>Lon.getDir())?'E':'W'); 
+        ((MyFrame*)frame)->SetStatusText(strLatLon);
+        wxLogVerbose(strLatLon);
+    }
     wxLogVerbose("latitude==%f", ((MyFrame*)frame)->GetOwwlLatitude());
     wxLogVerbose("longitude==%f", ((MyFrame*)frame)->GetOwwlLongitude());
 
@@ -1531,18 +1586,21 @@ unsigned long OwwlReaderTimer::GetInterval(void)
 void OwwlReaderTimer::Notify()
 {
     static time_t last = 0;
-
-    wxLogVerbose("Readertimer:Notify");
+    owwl_conn *connection = m_frame->GetOwwlConnection();
+    bool doit = true;
+    //wxLogVerbose("Readertimer:Notify");
 #if 1
     if(NULL != m_frame)
     {
         if(NULL != m_frame->GetOwwlConnection())
         {
-            wxLogVerbose("Latitude=%3.4f", m_frame->GetOwwlLatitude());
-            wxLogVerbose("Longitude=%3.4f", m_frame->GetOwwlLongitude());
-            wxLogVerbose("interval=%d:", m_frame->m_connection->interval);
-
-            int retval = owwl_read(m_frame->GetOwwlConnection());
+            //wxLogVerbose("Latitude=%3.4f", m_frame->GetOwwlLatitude());
+            //wxLogVerbose("Longitude=%3.4f", m_frame->GetOwwlLongitude());
+            //wxLogVerbose("interval=%d:", m_frame->m_connection->interval);
+          while(doit)
+          {
+            doit = false;
+            int retval = owwl_read(connection);
             switch(retval)
             {
                 case Owwl_Read_Error:
@@ -1560,11 +1618,11 @@ void OwwlReaderTimer::Notify()
                     break;
                 case Owwl_Read_Again:
                     wxLogVerbose("Read Again");
-                    retval = owwl_tx_poll_servers(m_frame->m_connection);
+                    retval = owwl_tx_poll_servers(connection);
                     if(-1==retval)wxLogVerbose("owwl_tx_poll_servers failed");
                     wxMilliSleep(10); /* Sleep for 10 ms */
                     if((last != 0) 
-                        && (time(NULL)>(last+m_frame->m_connection->interval*2+1)))
+                        && (time(NULL)>(last+connection->interval*2+1)))
                     {
                         wxLogVerbose("Timeout");
                         //check_conn(conn) ;
@@ -1576,18 +1634,19 @@ void OwwlReaderTimer::Notify()
                     wxDateTime dataTime;
                     dataTime = wxDateTime(m_frame->GetOwwlDataTime());
                     wxLogVerbose("Read And Decode %s", dataTime.FormatTime());
-                    retval = owwl_tx_build(m_frame->m_connection, 
-                                    OWW_TRX_MSG_WSDATA, &(m_frame->buff));
+                    retval = owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, &(m_frame->buff));
                     if(-1==retval)wxLogVerbose("owwl_tx_build failed");
-                    retval = owwl_tx(m_frame->m_connection, &(m_frame->buff));
+                    retval = owwl_tx(connection, &(m_frame->buff));
                     if(-1==retval)wxLogVerbose("owwl_tx failed");
                     last = time(NULL);
+                    doit = true;
                     break;
                 }
                 default:
                     wxLogVerbose("Read Default");
                     break;
             } //switch(owwl_read(m_frame->m_connection))
+          } //while(do)
         } //if(NULL != m_frame->m_connection)
         else
         {
@@ -2093,6 +2152,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             m_frame->SetStatusText(now, 1);
             //wxDateTime dataTime = wxDateTime(m_frame->GetOwwlDataTime());
             //m_frame->SetStatusText(dataTime.FormatTime(), 1);
+
         }
         else
         {
