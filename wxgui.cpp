@@ -1026,8 +1026,11 @@ MyFrame::MyFrame()
     m_restoreAuxFrame = false;
 
 #if 0
+    //wxApp::GetAppDir().GetPath())
+    wxFile logFile;
+    wxLog * logTarget;
     wxFileName logPath = wxFileName(wxT("UpdaterLog.txt"));
-    if( logPath.Normalize(wxPATH_NORM_ALL, muApp::GetAppDir().GetPath()) )
+    if(logPath.Normalize(wxPATH_NORM_ALL, wxT("./")))
     {
         // create log
         logFile.Open(logPath.GetFullPath(), wxT("w"));
@@ -1036,7 +1039,8 @@ MyFrame::MyFrame()
         logTarget->SetVerbose(TRUE); 
         wxLog::SetActiveTarget(logTarget); 
     }
-#else
+#endif
+#if 0
     m_logWindow = new wxLogWindow(this, wxT("Log"));
     wxFrame *pLogFrame = m_logWindow->GetFrame();
     pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP);
@@ -1051,27 +1055,6 @@ MyFrame::MyFrame()
     WORD wVersionRequested;
     WSADATA wsaData;
     int wsaerr;
-
-#ifdef WXOWWGUI_LOG_TO_FILE
-    wxFileName logPath = wxFileName(wxT("UpdaterLog.txt"));
-    if( logPath.Normalize(wxPATH_NORM_ALL, muApp::GetAppDir().GetPath()) )
-    {
-        // create log
-        logFile.Open(logPath.GetFullPath(), wxT("w"));
-        logTarget = new wxLogStderr(logFile.fp()); 
-        logTargetOld = wxLog::GetActiveTarget();
-        logTarget->SetVerbose(TRUE); 
-        wxLog::SetActiveTarget(logTarget); 
-     }
-#else
-    wxLogWindow *m_logWindow = new wxLogWindow(frame, wxT("Log") );
-    wxFrame *pLogFrame = m_logWindow->GetFrame();
-    pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP);
-    pLogFrame->SetSize( wxRect(0,50,400,250) );
-    //m_logWindow->SetVerbose(TRUE);
-    wxLog::SetActiveTarget(m_logWindow);
-    m_logWindow->Show();
-#endif
 
     // Using MAKEWORD macro, Winsock version request 2.2
     wVersionRequested = MAKEWORD(2, 2);
