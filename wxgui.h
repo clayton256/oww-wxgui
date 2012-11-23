@@ -34,5 +34,4 @@ defaults:
 
 */
 
-class MyFrame;
 

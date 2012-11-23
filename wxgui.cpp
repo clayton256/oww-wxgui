@@ -8,7 +8,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Author:      
 // Created:     
-// Copyright:   (c) 
+// Copyright:   (c)
 // Licence:     
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -26,6 +26,7 @@
 #endif
 
 // wxWidget includes
+#include <wx/frame.h>
 #include <wx/log.h>
 #include <wx/apptrait.h>
 #include <wx/image.h>
@@ -48,6 +49,7 @@
 #include <wx/propdlg.h>
 #include <wx/spinctrl.h>
 #include <wx/bookctrl.h>
+#include <wx/cmdline.h>
 
 // system includes
 #ifndef __WXMSW__
@@ -78,7 +80,7 @@
 // app include
 #include "wxgui.h"
 
-
+class MyFrame;
 
 #ifdef __cplusplus
 extern "C" {
@@ -87,6 +89,7 @@ extern "C" {
 
 #include "owwl.h"
 
+#if 0
 /* Call a function for each data entry */
 /* The function should return non-zero to break out of the loop */
 int
@@ -101,6 +104,7 @@ owwl_foreach_jmc(owwl_conn *conn, owwl_func func, void *user_data)
 
     return 0 ; /* Ok */
 }
+#endif
 
 #ifdef __cplusplus
 } /*extern "C"*/
@@ -119,9 +123,6 @@ enum
     ID_SETUP,
     ID_DEVICES
 };
-
-class MyCanvas;
-class MyAuxilliaryFrame;
 
 wxString g_VersionStr = VERSIONSTR;
 owwl_conn *g_connection;
@@ -195,16 +196,36 @@ class MyApp: public wxApp
 {
 public:
     virtual bool OnInit();
+#ifdef WXGUI_COMMANDLINE
+    virtual void OnInitCmdLine(wxCmdLineParser& parser);
+    virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
     wxString GetCmdLine();
+#endif
     void LogPlatform();
 
 protected:
     virtual wxAppTraits *CreateTraits() { return new MyAppTraits; }
 };
 
+static const wxCmdLineEntryDesc g_cmdLineDesc [] =
+{
+     { wxCMD_LINE_SWITCH, "h", "help", 
+                           "displays help on the command line parameters",
+                           wxCMD_LINE_VAL_NONE, wxCMD_LINE_OPTION_HELP },
+     { wxCMD_LINE_SWITCH, "t", "test", "test switch",
+                           wxCMD_LINE_VAL_NONE, wxCMD_LINE_OPTION_MANDATORY },
+     { wxCMD_LINE_SWITCH, "s", "silent", "disables the GUI" },
+     { wxCMD_LINE_NONE }
+};
+
 
 wxString default_unit_names[] = {"<Metric>", "<Imperial>", "<Alt1>", "<Alt2>"};
 int unit_choices[OWWL_UNIT_CLASS_LIMIT];
+
+
+class MyAuxilliaryFrame;
+class MyCanvas;
+
 
 //-----------------------------------------------------------------------------
 // RenderTimer
@@ -221,6 +242,101 @@ private:
 };
 
 
+#if 1
+//-----------------------------------------------------------------------------
+// Class wxShadowDC - probably not the right way to do this...
+//-----------------------------------------------------------------------------
+enum wxShadowDirection
+{
+    wxLeftAndUp,
+    wxRightAndUp,
+    wxDownAndLeft,
+    wxDownAndRight
+};
+enum wxShadowModes
+{
+    wxShadowPixels,
+    wxShadowPercent,
+    wxShadowAnotherWay
+};
+
+class wxShadowDC : public wxClientDC
+{
+public:
+    //wxShadowDC(const wxDC& dc) : wxDC(dc) {};
+    wxShadowDC(wxWindow* window)/* : wxClientDC(window) {}*/;
+
+    void SetTextShadowOffset(const int & sz, enum wxShadowModes mode = wxShadowPixels)
+    {
+        m_shadowOffset = sz;
+        m_shadowOffsetMode = mode;
+    }
+
+    int GetTextShadowOffset(void)
+    {
+        return m_shadowOffset;
+    }
+
+    void SetTextShadowColour(const wxColour & colour)
+    {
+        m_shadowColour = colour;
+    }
+
+    wxColour GetTextShadowColour(void)
+    {
+        return m_shadowColour;
+    }
+
+    void DrawShadowText(wxString str, wxPoint pt)
+    {
+        wxPoint shadowPt = pt;
+        wxColour foreColour = GetTextForeground();
+        //wxFont f;
+        //f.GetPointSize();
+        switch(m_shadowOffsetMode)
+        {
+            case wxShadowPixels:
+                shadowPt.x += m_shadowOffset;
+                shadowPt.y += m_shadowOffset;
+                break;
+            case wxShadowPercent:
+                {
+                    int offsetPxls = ((float)m_shadowOffset * 
+                                      (float)GetCharHeight() / 100.0);
+                    offsetPxls = (0==offsetPxls)?1:offsetPxls;
+                    shadowPt.x += offsetPxls;
+                    shadowPt.y += offsetPxls;
+                }
+                break;
+            default:
+                break;
+        }
+
+        SetTextForeground(m_shadowColour);
+        DrawText(str, shadowPt);
+
+        SetTextForeground(foreColour);
+        DrawText(str, pt);
+    }
+
+private:
+    wxColour m_shadowColour;
+    int      m_shadowOffset;
+    enum wxShadowDirection m_shadowOffsetDir;
+    enum wxShadowModes m_shadowOffsetMode;
+};
+
+
+wxShadowDC::wxShadowDC(wxWindow* window) : wxClientDC(window) 
+{
+    //m_shadowColour = wxBLACK;
+    m_shadowOffset = 3;
+    m_shadowOffsetDir = wxDownAndRight;
+    m_shadowOffsetMode = wxShadowPixels;
+}
+
+#endif
+
 
 //-----------------------------------------------------------------------------
 // MyCanvas
@@ -231,6 +347,8 @@ public:
     MyCanvas( wxWindow *parent, wxWindowID, const wxPoint &pos, 
               const wxSize &size );
     ~MyCanvas();
+
+    wxShadowDC *shadowDC;
 
     void OnPaint( wxPaintEvent &event );
     void CreateAntiAliasedBitmap();
@@ -280,6 +398,142 @@ private:
 };
 
 
+// ----------------------------------------------------------------------------
+// MyFrame
+// ----------------------------------------------------------------------------
+class MyFrame: public wxFrame
+{
+    OwwlReaderTimer * m_readerTimer;
+    wxConfigBase *    m_config;
+    wxLogWindow *     m_logWindow;
+
+public:
+    MyFrame();
+    ~MyFrame();
+
+    void OnAbout( wxCommandEvent &event );
+    void OnAuxilliary( wxCommandEvent &event );
+    void OnMap( wxCommandEvent &event );
+    void OnMessages( wxCommandEvent &event );
+#ifdef __WXMOTIF__
+    void OnMenuToggleUnits( wxCommandEvent &event );
+#endif
+    void OnQuit( wxCommandEvent &event );
+
+    void SetLatLongStatus();
+    void SetTitleBar();
+
+    owwl_conn* ServerReconnect() 
+    {
+        if (NULL == this) return NULL;
+        if (NULL == this->m_connection) return NULL;
+        ServerDisconnect();
+        InitServerConnection();
+        return m_connection;
+    }
+
+    void ServerDisconnect() 
+    {
+        if (NULL == this) return;
+        if (NULL == this->m_connection) return;
+        owwl_free(m_connection);
+        sock_close(m_socket);
+        m_socket = -1;
+        g_connection = m_connection = NULL;
+        return;
+    }
+
+    float GetOwwlLatitude(void)
+    {
+        if (NULL == this) return -0.0;
+        if (NULL == this->m_connection) return -0.0;
+        return this->m_connection->latitude;
+    }
+
+    float GetOwwlLongitude(void)
+    {
+        if (NULL == this) return -0.0;
+        if (NULL == this->m_connection) return -0.0;
+        return this->m_connection->longitude;
+    }
+
+    int GetOwwlInterval(void)
+    {
+        if (NULL == this) return -0;
+        if (NULL == this->m_connection) return -0;
+        return this->m_connection->interval;
+    }
+
+    time_t GetOwwlDataTime(void)
+    {
+        if (NULL == this) return -0;
+        if (NULL == this->m_connection) return -0;
+        return this->m_connection->data_time
+              +this->m_connection->data_time_usec;
+    }
+
+    owwl_conn* GetOwwlConnection(void)
+    {
+        if (NULL == this) return NULL;
+        if (NULL == this->m_connection) return NULL;
+        return this->m_connection;
+    }
+
+    SOCKET GetOwwlSocket(void)
+    {
+        if (NULL == this) return -1;
+        return this->m_socket;
+    }
+
+    void SetOwwlSocket(SOCKET s = -1)
+    {
+        if (NULL == this) return;
+        this->m_socket = s;
+    }
+
+    owwl_buffer buff;
+    
+    wxMenu        *menuImage;
+    wxMenu        *subMenu;
+    MyCanvas      *m_canvas;
+    wxStatusBar   *m_statusbar;
+    wxString       m_hostname;
+    int            m_port;
+    unsigned int   m_pollInterval;
+    SOCKET         m_socket;
+    owwl_conn     *m_connection;
+    wxString       m_mapurl;
+    bool           m_launchAtStart;
+    int            m_units;
+    bool           m_animateDisplay;
+    int            m_browser;
+    bool           m_restoreAuxFrame;
+private:
+    enum
+    {
+        Menu_SubMenu = 450,
+        Menu_SubMenu_Radio0,
+        Menu_SubMenu_Radio1,
+        Menu_SubMenu_Radio2,
+        Menu_SubMenu_Radio3,
+        DIALOGS_PROPERTY_SHEET,
+    };
+
+    void OnMenuSetUnits(wxCommandEvent &event);
+    int InitServerConnection(void);
+    void OnPropertySheet(wxCommandEvent& event);
+
+    wxLongLong owwl_version_num(void)
+    {
+        return OWW_PROTO_VERSION;
+    };
+
+    void changeUnits(int units);
+
+    DECLARE_DYNAMIC_CLASS(MyFrame)
+    DECLARE_EVENT_TABLE()
+}; //class MyFrame
+
 
 //-----------------------------------------------------------------------------
 // MyAuxilliaryFrame
@@ -297,10 +551,11 @@ public:
 
     void SetGridUnits(void);
 
-    wxGrid *m_grid;
-    MyFrame *m_parentFrame;
+    wxGrid *  m_grid;
+    MyFrame * m_mainFrame;
 
 private:
+    owwl_conn * m_connection;
     bool m_updateGridUnits;
     MyCanvas *m_canvas;
     wxStatusBar * m_statusBar;
@@ -324,10 +579,12 @@ private:
         {
             return false;
         }
-        m_canvas = canvas;
-        m_parentFrame = (MyFrame*)parent;
 
-        m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
+        m_canvas = canvas;
+        m_mainFrame = canvas->m_frame;
+        m_connection = canvas->m_frame->m_connection;
+
+        m_grid = new wxGrid(this, wxID_ANY, wxPoint(1,1), wxDefaultSize);
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
         m_grid->EnableDragColSize(false);
@@ -387,7 +644,7 @@ void MyAuxilliaryFrame::OnPaint(wxPaintEvent& WXUNUSED(event))
 
 MyAuxilliaryFrame::~MyAuxilliaryFrame()
 {
-    ;
+   ;
 } //MyAuxilliaryFrame d-tor
 
 
@@ -395,7 +652,7 @@ MyAuxilliaryFrame::~MyAuxilliaryFrame()
 int MyAuxilliaryFrame::InitPopulateCells()
 {
     if(NULL == m_grid) return 1;
-    owwl_conn *conn = g_connection;
+    owwl_conn *conn = m_connection;
     owwl_data *data = NULL;
     if(NULL != conn)
     {
@@ -443,7 +700,7 @@ int MyAuxilliaryFrame::InitPopulateCells()
 int MyAuxilliaryFrame::UpdateCellsUnits()
 {
     if(NULL == m_grid) return 1;
-    owwl_conn *conn = g_connection;
+    owwl_conn *conn = m_connection;
     owwl_data *data = NULL;
     if(NULL != conn)
     {
@@ -574,108 +831,6 @@ DECLARE_EVENT_TABLE()
 }; //class MySettingsDialog
 
 
-// ----------------------------------------------------------------------------
-// MyFrame
-// ----------------------------------------------------------------------------
-class MyFrame: public wxFrame
-{
-    OwwlReaderTimer *m_readerTimer;
-    wxConfigBase *m_config;
-
-public:
-    MyFrame();
-    ~MyFrame();
-
-    void OnAbout( wxCommandEvent &event );
-    void OnAuxilliary( wxCommandEvent &event );
-    void OnMap( wxCommandEvent &event );
-    void OnMessages( wxCommandEvent &event );
-#ifdef __WXMOTIF__
-    void OnMenuToggleUnits( wxCommandEvent &event );
-#endif
-    void OnQuit( wxCommandEvent &event );
-
-    float GetOwwlLatitude(void)
-    {
-        if (NULL == this) return -0.0;
-        if (NULL == this->m_connection) return -0.0;
-        return this->m_connection->latitude;
-    }
-
-    float GetOwwlLongitude(void)
-    {
-        if (NULL == this) return -0.0;
-        if (NULL == this->m_connection) return -0.0;
-        return this->m_connection->longitude;
-    }
-
-    int GetOwwlInterval(void)
-    {
-        if (NULL == this) return -0;
-        if (NULL == this->m_connection) return -0;
-        return this->m_connection->interval;
-    }
-
-    time_t GetOwwlDataTime(void)
-    {
-        if (NULL == this) return -0;
-        if (NULL == this->m_connection) return -0;
-        return this->m_connection->data_time
-              +this->m_connection->data_time_usec;
-    }
-
-    owwl_conn* GetOwwlConnection(void)
-    {
-        if (NULL == this) return NULL;
-        if (NULL == this->m_connection) return NULL;
-        return this->m_connection;
-    }
-
-    owwl_buffer buff;
-    
-    wxLogWindow   *m_logWindow;
-    wxMenu        *menuImage;
-    wxMenu        *subMenu;
-    MyCanvas      *m_canvas;
-    wxStatusBar   *m_statusbar;
-    wxString       m_hostname;
-    int            m_port;
-    unsigned int   m_pollInterval;
-    SOCKET         m_s;
-    owwl_conn     *m_connection;
-    wxString       m_mapurl;
-    bool           m_launchAtStart;
-    int            m_units;
-    bool           m_animateDisplay;
-    int            m_browser;
-    bool           m_restoreAuxFrame;
-private:
-    enum
-    {
-        Menu_SubMenu = 450,
-        Menu_SubMenu_Radio0,
-        Menu_SubMenu_Radio1,
-        Menu_SubMenu_Radio2,
-        Menu_SubMenu_Radio3,
-        DIALOGS_PROPERTY_SHEET,
-    };
-
-    void OnMenuSetUnits(wxCommandEvent &event);
-    int InitServerConnection(void);
-    void OnPropertySheet(wxCommandEvent& event);
-
-    wxLongLong owwl_version_num(void)
-    {
-        return OWW_PROTO_VERSION;
-    };
-
-    void changeUnits(int units);
-
-    DECLARE_DYNAMIC_CLASS(MyFrame)
-    DECLARE_EVENT_TABLE()
-}; //class MyFrame
-
-
 
 // ============================================================================
 // implementations
@@ -695,7 +850,7 @@ END_EVENT_TABLE()
 //-----------------------------------------------------------------------------
 // MyFrame
 //-----------------------------------------------------------------------------
-
+#if 0
 static int
 print_data(owwl_conn * /*conn*/, owwl_data *data, void * /*user_data*/)
 {
@@ -746,6 +901,7 @@ print_data(owwl_conn * /*conn*/, owwl_data *data, void * /*user_data*/)
 
   return 0 ;
 }
+#endif
 
 class Coordinate
 {
@@ -858,7 +1014,7 @@ MyFrame::MyFrame()
     m_hostname = wxString(wxT("localhost"));
     m_port = 8899;
     m_pollInterval = 10;
-    m_s = -1;
+    m_socket = -1;
     m_units = OwwlUnit_Imperial;
 #if 0    
     buff = Owwl_Buffer_Init;
@@ -868,6 +1024,29 @@ MyFrame::MyFrame()
     m_browser = 0;
     m_mapurl = wxEmptyString;
     m_restoreAuxFrame = false;
+
+#if 0
+    wxFileName logPath = wxFileName(wxT("UpdaterLog.txt"));
+    if( logPath.Normalize(wxPATH_NORM_ALL, muApp::GetAppDir().GetPath()) )
+    {
+        // create log
+        logFile.Open(logPath.GetFullPath(), wxT("w"));
+        logTarget = new wxLogStderr(logFile.fp()); 
+        logTargetOld = wxLog::GetActiveTarget();
+        logTarget->SetVerbose(TRUE); 
+        wxLog::SetActiveTarget(logTarget); 
+    }
+#else
+    m_logWindow = new wxLogWindow(this, wxT("Log"));
+    wxFrame *pLogFrame = m_logWindow->GetFrame();
+    pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP);
+    pLogFrame->SetSize(wxRect(0,50,500,200));
+    m_logWindow->SetVerbose(false);
+    wxLog::SetActiveTarget(m_logWindow);
+    m_logWindow->Show();
+#endif
+    wxLogVerbose(wxString::Format(wxT("Welcome to %s"), wxT("oww-wxgui")));
+
 #ifdef __WXMSW__
     WORD wVersionRequested;
     WSADATA wsaData;
@@ -986,17 +1165,16 @@ MyFrame::MyFrame()
 
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(w,h) );
     Show();
-
+#if 0
     m_canvas->m_renderTimer = new RenderTimer(m_canvas);
     m_canvas->m_renderTimer->start();
 
     m_readerTimer = new OwwlReaderTimer(this, m_pollInterval);
     m_readerTimer->start();
-
+#endif
     if(0 == InitServerConnection())
     {
-        SetTitle(wxString::Format(wxT("%s://%s:%d"), GetTitle(), m_hostname, 
-                                                                 (int)m_port));
+        SetTitleBar();
     }
     
     if(true == m_restoreAuxFrame)
@@ -1029,7 +1207,7 @@ int MyFrame::InitServerConnection(void)
   strcpy(addr_un.sun_path, m_hostname) ;
   addr_len = sizeof(addr_un.sun_family) + strlen(m_hostname) ;
   address = (struct sockaddr *) &addr_un ;
-  wxLogVerbose(wxString::Format(wxT("Connecting to LOCAL (UNIX) port: %s\n"), m_hostname));
+  wxLogVerbose(wxString::Format(wxT("Connecting to LOCAL port: %s\n"), m_hostname));
   }
 
         memset(&addr_in, 0, sizeof(struct sockaddr_in));
@@ -1063,15 +1241,16 @@ int MyFrame::InitServerConnection(void)
             address = (struct sockaddr *) &addr_in;
             int addr_len = sizeof(addr_in);
 
-            m_s = socket(address->sa_family, SOCK_STREAM, 0);
-            if(m_s != -1)
+            m_socket = socket(address->sa_family, SOCK_STREAM, 0);
+            if(m_socket != -1)
             {
-                g_connection = m_connection = owwl_new_conn(m_s, NULL);
-                if (connect(m_s, address, addr_len) == 0)
+                g_connection = m_connection = owwl_new_conn(m_socket, NULL);
+                if (connect(m_socket, address, addr_len) == 0)
                 {
                     /* Mark the socket as non-blocking */
                     unsigned long a = 1L;
-                    IOCTL(m_s, FIONBIO, &a);
+                    IOCTL(m_socket, FIONBIO, &a);
+#if 0
                     int retval = owwl_read(m_connection);
                     switch(retval)
                     {
@@ -1081,9 +1260,10 @@ int MyFrame::InitServerConnection(void)
                             // drop thru to disconnect break;
                         case Owwl_Read_Disconnect:
                             wxLogVerbose("Server disconnect");
-                            sock_close(m_s);
+                            ServerDisconnect();
+                            /*sock_close(m_s);
                             m_s = -1;
-                            g_connection = m_connection = NULL;
+                            g_connection = m_connection = NULL;*/
                             retval = -1;
                             break;
                         case Owwl_Read_Again:
@@ -1104,19 +1284,21 @@ int MyFrame::InitServerConnection(void)
                             retval = -1;
                             wxLogVerbose("Read default");
                             break;
-                    }
+                    }//switch(owwl_read)
                     if(m_connection)
                     {
                         //owwl_foreach(m_connection, print_data, NULL);
                     }
+#endif
                 }
                 else
                 {
                     wxLogVerbose("Error: connect failed %d", errno);
-                    owwl_free(m_connection);
-                    sock_close(m_s);
-                    m_s = -1;
-                    g_connection = m_connection = NULL;
+                    ServerDisconnect();
+                    /*owwl_free(m_connection);
+                    sock_close(m_socket);
+                    m_socket = -1;
+                    g_connection = m_connection = NULL;*/
                     retval = -1;
                 } //connect()
             }
@@ -1135,7 +1317,51 @@ int MyFrame::InitServerConnection(void)
     return retval;
 } //MyFrame::InitServerConnection
 
+void MyFrame::SetLatLongStatus()
+{
+    if (NULL == this) return;
+    if (NULL == this->m_statusbar) return;
+    if (NULL == this->m_connection) return;
 
+    float lat = GetOwwlLatitude();
+    float lon = GetOwwlLongitude();
+    Coordinate Lat = Coordinate(lat);
+    Coordinate Lon = Coordinate(lon);
+    //wxString strLatLon =  wxString::Format(wxT("%2.5f%c %3.5f%c"),
+    //                     (0>lat)?lat*-1:lat, (0>lat)?'S':'N', 
+    //                     (0>lon)?lon*-1:lon, (0>lon)?'W':'E'); 
+    wxString strLatLon= wxString::Format(wxT("%d\370%d\"%d\'%c/%d\370%d\"%d\'%c"),
+             Lat.getDeg(), Lat.getMin(), Lat.getSec(), (0>Lat.getDir())?'S':'N',
+             Lon.getDeg(), Lon.getMin(), Lon.getSec(), (0>Lon.getDir())?'E':'W');
+    SetStatusText(strLatLon);
+    //wxLogVerbose(strLatLon);
+
+    return;
+} //MyFrame::SetLatLongStatus
+
+void MyFrame::SetTitleBar()
+{
+    if (NULL == this) return;
+
+    wxString titleStr = GetTitle();
+    if (true == titleStr.IsEmpty() || true == titleStr.IsNull() || 
+                                               NULL == this->m_connection) 
+    {
+        //wxLogVerbose("SetTitle");
+        SetTitle(wxT("oww-wxgui"));
+    }
+    else
+    {
+        //can't seem to do titleNew.Format(wxT("oww-wxgui://%s:%d"), 
+        //                          m_hostname, (int)m_port); for some reason...
+        wxString titleNew = wxString::Format(wxT("oww-wxgui://%s:%d"), 
+                                                       m_hostname, (int)m_port);
+        //wxLogVerbose(titleNew);
+        SetTitle(titleNew);
+    }
+
+    return;
+}
 
 void MyFrame::OnMenuSetUnits(wxCommandEvent& event)
 {
@@ -1158,11 +1384,12 @@ void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
     m_readerTimer->Stop();
     delete m_readerTimer;
 
-    owwl_free(m_connection);
-    sock_close(m_s);
-    m_s = -1;
+    ServerDisconnect();
+    /*owwl_free(m_connection);
+    sock_close(m_socket);
+    m_socket = -1;
     g_connection = m_connection = NULL;
-    
+    */
     Close( true );
 } //MyFrame::OnQuit
 
@@ -1199,7 +1426,8 @@ void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
     info.AddDeveloper("Mark Clayton");
     info.AddDeveloper("\nDr. Simon Melhuish, author of oww - Thank You!");
     info.AddDeveloper("\nThe wxWidgets team! - Thank You!");
-    info.SetWebSite(_("www.mark-clayton.com/oww-wxgui"), _("oww-wxgui website"));
+    info.SetWebSite(_("www.mark-clayton.com/projects.html#oww-wxgui"), 
+                                                        _("oww-wxgui website"));
     info.SetVersion(g_VersionStr);
     info.SetCopyright(_T("(C) 2012 Mark Clayton \
                                         <mark_clayton@users.sourceforge.net>"));
@@ -1263,11 +1491,13 @@ void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
     wxLogVerbose("OnMap Latitude=%3.4f", latitude);
     wxLogVerbose("OnMap Longitude=%3.4f", longitude);
 
-    char command[2048];
-    sprintf(command, "open /Applications/Safari.app/Contents/MacOS/Safari " + 
-                             m_mapurl, latitude, longitude);
-    wxArrayString output;
-    wxExecute(wxString(command), output);
+    //char command[2048];
+    //sprintf(command, "open /Applications/Safari.app/Contents/MacOS/Safari " + 
+    //                         m_mapurl, latitude, longitude);
+    //wxArrayString output;
+    wxString url = wxString::Format(m_mapurl, latitude, longitude);
+    wxLaunchDefaultBrowser(url);
+    //wxExecute(wxString(command), output);
 } //MyFrame::OnMap
 
 
@@ -1501,38 +1731,21 @@ bool MyApp::OnInit()
     wxInitAllImageHandlers();
 
     wxFrame *frame = new MyFrame();
+    frame->Show( true );
 
     wxLogVerbose("Welcome to oww-wxgui");
-
+    wxString appNameStr = GetAppName();
     LogPlatform();
 
-    wxLogVerbose("cmdln: %s", MyApp::GetCmdLine().c_str());
-
-    {
-        float lat = ((MyFrame*)frame)->GetOwwlLatitude();
-        float lon = ((MyFrame*)frame)->GetOwwlLongitude();
-        Coordinate Lat = Coordinate(lat);
-        Coordinate Lon = Coordinate(lon);
-        //wxString strLatLon =  wxString::Format(wxT("%2.5f%c %3.5f%c"),
-        //                     (0>lat)?lat*-1:lat, (0>lat)?'S':'N', 
-        //                     (0>lon)?lon*-1:lon, (0>lon)?'W':'E'); 
-        wxString strLatLon =  wxString::Format(wxT("%d\370%d\"%d\'%c/%d\370%d\"%d\'%c"),
-                             Lat.getDeg(), Lat.getMin(), Lat.getSec(), (0>Lat.getDir())?'S':'N', 
-                             Lon.getDeg(), Lon.getMin(), Lon.getSec(), (0>Lon.getDir())?'E':'W'); 
-        ((MyFrame*)frame)->SetStatusText(strLatLon);
-        wxLogVerbose(strLatLon);
-    }
-    wxLogVerbose("latitude==%f", ((MyFrame*)frame)->GetOwwlLatitude());
-    wxLogVerbose("longitude==%f", ((MyFrame*)frame)->GetOwwlLongitude());
-
-    frame->Show( true );
 
     return true;
 } //MyApp:OnInit
 
 
+#if 0
 wxString MyApp::GetCmdLine()
 {
+    wxLogVerbose("cmdln: %s", MyApp::GetCmdLine().c_str());
     wxString s;
     for(int i=1; i<argc; ++i)
     {
@@ -1542,6 +1755,34 @@ wxString MyApp::GetCmdLine()
     return s;
 } // MyApp::GetCmdLine
 
+
+void MyApp::OnInitCmdLine(wxCmdLineParser& parser)
+{
+    parser.SetDesc (g_cmdLineDesc);
+    // must refuse '/' as parameter starter or cannot use "/path" style paths
+    parser.SetSwitchChars (wxT("-"));
+} //MyApp::OnInitCmdLine
+
+
+bool MyApp::OnCmdLineParsed(wxCmdLineParser& parser)
+{
+    wxLogVerbose("cmdln: %s", MyApp::GetCmdLine().c_str());
+    /*silent_mode =*/ parser.Found(wxT("s"));
+
+    // to get at your unnamed parameters use
+    wxArrayString files;
+    for (unsigned int i = 0; i < parser.GetParamCount(); i++)
+    {
+            files.Add(parser.GetParam(i));
+    }
+
+    // and other command line parameters
+
+    // then do what you need with them.
+ 
+    return true;
+} //MyApp::OnCmdLineParsed
+#endif
 
 // ----------------------------------------------------------------------------
 //  debug
@@ -1586,17 +1827,18 @@ unsigned long OwwlReaderTimer::GetInterval(void)
 void OwwlReaderTimer::Notify()
 {
     static time_t last = 0;
-    owwl_conn *connection = m_frame->GetOwwlConnection();
     bool doit = true;
     //wxLogVerbose("Readertimer:Notify");
 #if 1
     if(NULL != m_frame)
     {
-        if(NULL != m_frame->GetOwwlConnection())
+        owwl_conn *connection = m_frame->GetOwwlConnection();
+        if(NULL != connection)
         {
-            //wxLogVerbose("Latitude=%3.4f", m_frame->GetOwwlLatitude());
-            //wxLogVerbose("Longitude=%3.4f", m_frame->GetOwwlLongitude());
             //wxLogVerbose("interval=%d:", m_frame->m_connection->interval);
+            m_frame->SetLatLongStatus();
+            m_frame->SetTitleBar();
+
           while(doit)
           {
             doit = false;
@@ -1611,9 +1853,10 @@ void OwwlReaderTimer::Notify()
                     m_frame->SetStatusText("Server disconnect");
                     /* Try to reconnect */
                     /* but for now close up */
-                    sock_close(m_frame->m_s);
-                    m_frame->m_s = -1;
-                    g_connection = m_frame->m_connection = NULL;
+                    m_frame->ServerDisconnect();
+                    /*sock_close(m_frame->m_socket);
+                    m_frame->m_socket = -1;
+                    g_connection = m_frame->m_connection = NULL;*/
                     last = time(NULL);
                     break;
                 case Owwl_Read_Again:
@@ -1627,6 +1870,7 @@ void OwwlReaderTimer::Notify()
                         wxLogVerbose("Timeout");
                         //check_conn(conn) ;
                         last = time(NULL);
+                        m_frame->ServerReconnect();
                     }
                     break;
                 case Owwl_Read_Read_And_Decoded:
@@ -1634,7 +1878,8 @@ void OwwlReaderTimer::Notify()
                     wxDateTime dataTime;
                     dataTime = wxDateTime(m_frame->GetOwwlDataTime());
                     wxLogVerbose("Read And Decode %s", dataTime.FormatTime());
-                    retval = owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, &(m_frame->buff));
+                    retval = owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, 
+                                                            &(m_frame->buff));
                     if(-1==retval)wxLogVerbose("owwl_tx_build failed");
                     retval = owwl_tx(connection, &(m_frame->buff));
                     if(-1==retval)wxLogVerbose("owwl_tx failed");
@@ -1650,7 +1895,7 @@ void OwwlReaderTimer::Notify()
         } //if(NULL != m_frame->m_connection)
         else
         {
-            // try to reconnect... someday...
+            m_frame->ServerReconnect();
         }
     } //if(NULL != m_frame)
 #endif
@@ -1715,17 +1960,17 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
 
     // try to find the images in the platform specific location
 #ifdef __WXGTK__
-    wxString dir = "/usr/local/share/oww/pixmaps/";
+    wxString dir = wxT("/usr/local/share/oww/pixmaps/");
 #elif __WXOSX_COCOA__
     //wxString dir = "/Library/Application Support/Oww/pixmaps/";
-    wxString dir = wxGetCwd() + "/pixmaps/";
+    wxString dir = wxGetCwd() + wxT("/pixmaps/");
 #elif __WXMSW__
-    wxString dir = /*wxGetOSDirectory() + */ "\\Program Files\\Oww\\pixmaps\\";
+    wxString dir = /*wxGetOSDirectory() + */ wxT("\\Program Files\\Oww\\pixmaps\\");
 #else
 #error define your platform
 #endif
 
-   wxLogVerbose("Looking for images in %s", dir);
+   wxLogVerbose(wxT("Looking for images in %s"), dir);
 
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
@@ -1865,10 +2110,14 @@ void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
     return;
 } //MyCanvas::DrawShadowText
 
+
+
 void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 {
     wxPaintDC dc( this );
     PrepareDC( dc );
+    shadowDC = new wxShadowDC(this);
+    shadowDC->SetTextShadowColour(wxT("BLACK"));
     owwl_data *od = NULL;
     int unit;
 #ifdef __WXGTK__
@@ -1884,17 +2133,32 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     wxFont f = wxFont(fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
                                                         wxFONTWEIGHT_BOLD);
     dc.SetFont(f);
+    dc.SetTextForeground( wxT("WHITE") );
 
     if(m_frame)
     {
+        if (top1_jpg.IsOk())
+        {
+             dc.DrawBitmap( top1_jpg, 0, 0 );
+        }
+
+        if (body_jpg.IsOk())
+        {
+            dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight() );
+        }
+
+        if (bottom1_jpg.IsOk())
+        {
+            dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
+                                                + body_jpg.GetHeight());
+        }
+
         if(m_frame->m_connection)
         {
             float speed = 0.0;
             float gust = 0.0;
             float bearing = 0.0;
             char linebuf[128];
-
-            dc.SetTextForeground( wxT("WHITE") );
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
             if(NULL != od)
@@ -2037,10 +2301,17 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         owwl_unit_name(od, unit, 1)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 40));
                 // Draw Wind Bearing on canvas
+#if 0
+                shadowDC->DrawShadowText( wxString::Format("%s %s",
+                                        od->str(od, linebuf, 128, unit, -1, 0),
+                                        owwl_unit_name(od, unit, 0)), 
+                        wxPoint(365, 60));
+#else
                 DrawText( wxString::Format("%s %s", 
                                         od->str(od, linebuf, 128, unit, -1, 2),
                                         owwl_unit_name(od, unit, 2)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 60));
+#endif
             }
             else
             {
@@ -2155,23 +2426,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
         }
         else
         {
-            if (top1_jpg.IsOk())
-            {
-                 dc.DrawBitmap( top1_jpg, 0, 0 );
-            }
-
-            if (body_jpg.IsOk())
-            {
-                dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight() );
-            }
-
-            if (bottom1_jpg.IsOk())
-            {
-                dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
-                                                    + body_jpg.GetHeight());
-            }
-            m_frame->SetTitle(wxString::Format(wxT("%s"), "Oww")); 
-
             wxLogVerbose("MyCanvas::OnPaint m_conn==NULL");
         }// if(m_connection)
 
@@ -2215,84 +2469,4 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     }
 #endif
 } //MyCanvas::OnPaint
-
-enum wxShadowDirection
-{
-    wxLeftAndUp,
-    wxRightAndUp,
-    wxDownAndLeft,
-    wxDownAndRight
-};
-enum wxShadowModes
-{
-    wxShadowPixels,
-    wxShadowPercent,
-    wxShadowAnotherWay
-};
-
-#if 1
-class wxShadowDC : wxDC
-{
-public:
-    void SetTextShadowOffset(const int & sz, enum wxShadowModes mode = wxShadowPixels)
-    {
-        m_shadowOffset = sz;
-        m_shadowOffsetMode = mode;
-    }
-
-    int GetTextShadowOffset(void)
-    {
-        return m_shadowOffset;
-    }
-
-    void SetTextShadowColour(const wxColour & colour)
-    {
-        m_shadowColour = colour;
-    }
-
-    wxColour GetTextShadowColour(void)
-    {
-        return m_shadowColour;
-    }
-
-    void DrawShadowText(wxString str, wxPoint pt)
-    {
-        wxPoint shadowPt = pt;
-        wxColour foreColour = GetTextForeground();
-        wxFont f;
-        f.GetPointSize();
-        switch(m_shadowOffsetMode)
-        {
-            case wxShadowPixels:
-                shadowPt.x = shadowPt.x + m_shadowOffset;
-                shadowPt.y = shadowPt.y + m_shadowOffset;
-                break;
-            case wxShadowPercent:
-                {
-                    int offsetPxls = ((float)m_shadowOffset * 
-                                      (float)GetCharHeight() / 100.0);
-                    offsetPxls = (0==offsetPxls)?1:offsetPxls;
-                    shadowPt.x = shadowPt.x + offsetPxls;
-                    shadowPt.y = shadowPt.y + offsetPxls;
-                }
-                break;
-            default:
-                break;
-        }
-
-        SetTextForeground(m_shadowColour);
-        DrawText(str, shadowPt);
-
-        SetTextForeground(foreColour);
-        DrawText(str, pt);
-    }
-
-private:
-    wxColour m_shadowColour;
-    int      m_shadowOffset;
-    enum wxShadowDirection m_shadowOffsetDir;
-    enum wxShadowModes m_shadowOffsetMode;
-};
-#endif
-
 
