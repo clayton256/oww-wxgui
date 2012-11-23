@@ -26,6 +26,7 @@
 #endif
 
 // wxWidget includes
+#include <wx/frame.h>
 #include <wx/log.h>
 #include <wx/apptrait.h>
 #include <wx/image.h>
@@ -79,7 +80,7 @@
 // app include
 #include "wxgui.h"
 
-
+class MyFrame;
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,6 +89,7 @@ extern "C" {
 
 #include "owwl.h"
 
+#if 0
 /* Call a function for each data entry */
 /* The function should return non-zero to break out of the loop */
 int
@@ -102,6 +104,7 @@ owwl_foreach_jmc(owwl_conn *conn, owwl_func func, void *user_data)
 
     return 0 ; /* Ok */
 }
+#endif
 
 #ifdef __cplusplus
 } /*extern "C"*/
@@ -120,9 +123,6 @@ enum
     ID_SETUP,
     ID_DEVICES
 };
-
-class MyCanvas;
-class MyAuxilliaryFrame;
 
 wxString g_VersionStr = VERSIONSTR;
 owwl_conn *g_connection;
@@ -221,6 +221,11 @@ static const wxCmdLineEntryDesc g_cmdLineDesc [] =
 
 wxString default_unit_names[] = {"<Metric>", "<Imperial>", "<Alt1>", "<Alt2>"};
 int unit_choices[OWWL_UNIT_CLASS_LIMIT];
+
+
+class MyAuxilliaryFrame;
+class MyCanvas;
+
 
 //-----------------------------------------------------------------------------
 // RenderTimer
@@ -393,6 +398,142 @@ private:
 };
 
 
+// ----------------------------------------------------------------------------
+// MyFrame
+// ----------------------------------------------------------------------------
+class MyFrame: public wxFrame
+{
+    OwwlReaderTimer * m_readerTimer;
+    wxConfigBase *    m_config;
+    wxLogWindow *     m_logWindow;
+
+public:
+    MyFrame();
+    ~MyFrame();
+
+    void OnAbout( wxCommandEvent &event );
+    void OnAuxilliary( wxCommandEvent &event );
+    void OnMap( wxCommandEvent &event );
+    void OnMessages( wxCommandEvent &event );
+#ifdef __WXMOTIF__
+    void OnMenuToggleUnits( wxCommandEvent &event );
+#endif
+    void OnQuit( wxCommandEvent &event );
+
+    void SetLatLongStatus();
+    void SetTitleBar();
+
+    owwl_conn* ServerReconnect() 
+    {
+        if (NULL == this) return NULL;
+        if (NULL == this->m_connection) return NULL;
+        ServerDisconnect();
+        InitServerConnection();
+        return m_connection;
+    }
+
+    void ServerDisconnect() 
+    {
+        if (NULL == this) return;
+        if (NULL == this->m_connection) return;
+        owwl_free(m_connection);
+        sock_close(m_socket);
+        m_socket = -1;
+        g_connection = m_connection = NULL;
+        return;
+    }
+
+    float GetOwwlLatitude(void)
+    {
+        if (NULL == this) return -0.0;
+        if (NULL == this->m_connection) return -0.0;
+        return this->m_connection->latitude;
+    }
+
+    float GetOwwlLongitude(void)
+    {
+        if (NULL == this) return -0.0;
+        if (NULL == this->m_connection) return -0.0;
+        return this->m_connection->longitude;
+    }
+
+    int GetOwwlInterval(void)
+    {
+        if (NULL == this) return -0;
+        if (NULL == this->m_connection) return -0;
+        return this->m_connection->interval;
+    }
+
+    time_t GetOwwlDataTime(void)
+    {
+        if (NULL == this) return -0;
+        if (NULL == this->m_connection) return -0;
+        return this->m_connection->data_time
+              +this->m_connection->data_time_usec;
+    }
+
+    owwl_conn* GetOwwlConnection(void)
+    {
+        if (NULL == this) return NULL;
+        if (NULL == this->m_connection) return NULL;
+        return this->m_connection;
+    }
+
+    SOCKET GetOwwlSocket(void)
+    {
+        if (NULL == this) return -1;
+        return this->m_socket;
+    }
+
+    void SetOwwlSocket(SOCKET s = -1)
+    {
+        if (NULL == this) return;
+        this->m_socket = s;
+    }
+
+    owwl_buffer buff;
+    
+    wxMenu        *menuImage;
+    wxMenu        *subMenu;
+    MyCanvas      *m_canvas;
+    wxStatusBar   *m_statusbar;
+    wxString       m_hostname;
+    int            m_port;
+    unsigned int   m_pollInterval;
+    SOCKET         m_socket;
+    owwl_conn     *m_connection;
+    wxString       m_mapurl;
+    bool           m_launchAtStart;
+    int            m_units;
+    bool           m_animateDisplay;
+    int            m_browser;
+    bool           m_restoreAuxFrame;
+private:
+    enum
+    {
+        Menu_SubMenu = 450,
+        Menu_SubMenu_Radio0,
+        Menu_SubMenu_Radio1,
+        Menu_SubMenu_Radio2,
+        Menu_SubMenu_Radio3,
+        DIALOGS_PROPERTY_SHEET,
+    };
+
+    void OnMenuSetUnits(wxCommandEvent &event);
+    int InitServerConnection(void);
+    void OnPropertySheet(wxCommandEvent& event);
+
+    wxLongLong owwl_version_num(void)
+    {
+        return OWW_PROTO_VERSION;
+    };
+
+    void changeUnits(int units);
+
+    DECLARE_DYNAMIC_CLASS(MyFrame)
+    DECLARE_EVENT_TABLE()
+}; //class MyFrame
+
 
 //-----------------------------------------------------------------------------
 // MyAuxilliaryFrame
@@ -410,9 +551,11 @@ public:
 
     void SetGridUnits(void);
 
-    wxGrid *m_grid;
+    wxGrid *  m_grid;
+    MyFrame * m_mainFrame;
 
 private:
+    owwl_conn * m_connection;
     bool m_updateGridUnits;
     MyCanvas *m_canvas;
     wxStatusBar * m_statusBar;
@@ -438,6 +581,9 @@ private:
         }
 
         m_canvas = canvas;
+        m_mainFrame = canvas->m_frame;
+        m_connection = canvas->m_frame->m_connection;
+
         m_grid = new wxGrid(this, wxID_ANY, wxPoint(1,1), wxSize(1,1));
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
@@ -505,7 +651,7 @@ MyAuxilliaryFrame::~MyAuxilliaryFrame()
 int MyAuxilliaryFrame::InitPopulateCells()
 {
     if(NULL == m_grid) return 1;
-    owwl_conn *conn = g_connection;
+    owwl_conn *conn = m_connection;
     owwl_data *data = NULL;
     if(NULL != conn)
     {
@@ -553,7 +699,7 @@ int MyAuxilliaryFrame::InitPopulateCells()
 int MyAuxilliaryFrame::UpdateCellsUnits()
 {
     if(NULL == m_grid) return 1;
-    owwl_conn *conn = g_connection;
+    owwl_conn *conn = m_connection;
     owwl_data *data = NULL;
     if(NULL != conn)
     {
@@ -682,134 +828,6 @@ protected:
 
 DECLARE_EVENT_TABLE()
 }; //class MySettingsDialog
-
-
-// ----------------------------------------------------------------------------
-// MyFrame
-// ----------------------------------------------------------------------------
-class MyFrame: public wxFrame
-{
-    OwwlReaderTimer * m_readerTimer;
-    wxConfigBase *    m_config;
-    wxLogWindow *     m_logWindow;
-
-public:
-    MyFrame();
-    ~MyFrame();
-
-    void OnAbout( wxCommandEvent &event );
-    void OnAuxilliary( wxCommandEvent &event );
-    void OnMap( wxCommandEvent &event );
-    void OnMessages( wxCommandEvent &event );
-#ifdef __WXMOTIF__
-    void OnMenuToggleUnits( wxCommandEvent &event );
-#endif
-    void OnQuit( wxCommandEvent &event );
-
-    void SetLatLongStatus();
-    void SetTitleBar();
-
-    owwl_conn* ServerReconnect() 
-    {
-        if (NULL == this) return NULL;
-        if (NULL == this->m_connection) return NULL;
-        owwl_free(m_connection);
-        sock_close(m_socket);
-        m_socket = -1;
-        m_connection = NULL;
-        InitServerConnection();
-        return m_connection;
-    }
-    float GetOwwlLatitude(void)
-    {
-        if (NULL == this) return -0.0;
-        if (NULL == this->m_connection) return -0.0;
-        return this->m_connection->latitude;
-    }
-
-    float GetOwwlLongitude(void)
-    {
-        if (NULL == this) return -0.0;
-        if (NULL == this->m_connection) return -0.0;
-        return this->m_connection->longitude;
-    }
-
-    int GetOwwlInterval(void)
-    {
-        if (NULL == this) return -0;
-        if (NULL == this->m_connection) return -0;
-        return this->m_connection->interval;
-    }
-
-    time_t GetOwwlDataTime(void)
-    {
-        if (NULL == this) return -0;
-        if (NULL == this->m_connection) return -0;
-        return this->m_connection->data_time
-              +this->m_connection->data_time_usec;
-    }
-
-    owwl_conn* GetOwwlConnection(void)
-    {
-        if (NULL == this) return NULL;
-        if (NULL == this->m_connection) return NULL;
-        return this->m_connection;
-    }
-
-    SOCKET GetOwwlSocket(void)
-    {
-        if (NULL == this) return NULL;
-        return this->m_socket;
-    }
-
-    void SetOwwlSocket(SOCKET s = -1)
-    {
-        if (NULL == this) return;
-        this->m_socket = s;
-    }
-
-    owwl_buffer buff;
-    
-    wxMenu        *menuImage;
-    wxMenu        *subMenu;
-    MyCanvas      *m_canvas;
-    wxStatusBar   *m_statusbar;
-    wxString       m_hostname;
-    int            m_port;
-    unsigned int   m_pollInterval;
-    SOCKET         m_socket;
-    owwl_conn     *m_connection;
-    wxString       m_mapurl;
-    bool           m_launchAtStart;
-    int            m_units;
-    bool           m_animateDisplay;
-    int            m_browser;
-    bool           m_restoreAuxFrame;
-private:
-    enum
-    {
-        Menu_SubMenu = 450,
-        Menu_SubMenu_Radio0,
-        Menu_SubMenu_Radio1,
-        Menu_SubMenu_Radio2,
-        Menu_SubMenu_Radio3,
-        DIALOGS_PROPERTY_SHEET,
-    };
-
-    void OnMenuSetUnits(wxCommandEvent &event);
-    int InitServerConnection(void);
-    void OnPropertySheet(wxCommandEvent& event);
-
-    wxLongLong owwl_version_num(void)
-    {
-        return OWW_PROTO_VERSION;
-    };
-
-    void changeUnits(int units);
-
-    DECLARE_DYNAMIC_CLASS(MyFrame)
-    DECLARE_EVENT_TABLE()
-}; //class MyFrame
 
 
 
@@ -1007,8 +1025,11 @@ MyFrame::MyFrame()
     m_restoreAuxFrame = false;
 
 #if 0
+    //wxApp::GetAppDir().GetPath())
+    wxFile logFile;
+    wxLog * logTarget;
     wxFileName logPath = wxFileName(wxT("UpdaterLog.txt"));
-    if( logPath.Normalize(wxPATH_NORM_ALL, muApp::GetAppDir().GetPath()) )
+    if(logPath.Normalize(wxPATH_NORM_ALL, wxT("./")))
     {
         // create log
         logFile.Open(logPath.GetFullPath(), wxT("w"));
@@ -1017,12 +1038,13 @@ MyFrame::MyFrame()
         logTarget->SetVerbose(TRUE); 
         wxLog::SetActiveTarget(logTarget); 
     }
-#else
+#endif
+#if 0
     m_logWindow = new wxLogWindow(this, wxT("Log"));
     wxFrame *pLogFrame = m_logWindow->GetFrame();
     pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP);
     pLogFrame->SetSize(wxRect(0,50,500,200));
-    m_logWindow->SetVerbose(true);
+    m_logWindow->SetVerbose(false);
     wxLog::SetActiveTarget(m_logWindow);
     m_logWindow->Show();
 #endif
@@ -1125,13 +1147,13 @@ MyFrame::MyFrame()
 
     m_canvas = new MyCanvas( this, wxID_ANY, wxPoint(0,0), wxSize(w,h) );
     Show();
-
+#if 0
     m_canvas->m_renderTimer = new RenderTimer(m_canvas);
     m_canvas->m_renderTimer->start();
 
     m_readerTimer = new OwwlReaderTimer(this, m_pollInterval);
     m_readerTimer->start();
-
+#endif
     if(0 == InitServerConnection())
     {
         SetTitleBar();
@@ -1220,9 +1242,10 @@ int MyFrame::InitServerConnection(void)
                             // drop thru to disconnect break;
                         case Owwl_Read_Disconnect:
                             wxLogVerbose("Server disconnect");
-                            sock_close(m_s);
+                            ServerDisconnect();
+                            /*sock_close(m_s);
                             m_s = -1;
-                            g_connection = m_connection = NULL;
+                            g_connection = m_connection = NULL;*/
                             retval = -1;
                             break;
                         case Owwl_Read_Again:
@@ -1253,10 +1276,11 @@ int MyFrame::InitServerConnection(void)
                 else
                 {
                     wxLogVerbose("Error: connect failed %d", errno);
-                    owwl_free(m_connection);
+                    ServerDisconnect();
+                    /*owwl_free(m_connection);
                     sock_close(m_socket);
                     m_socket = -1;
-                    g_connection = m_connection = NULL;
+                    g_connection = m_connection = NULL;*/
                     retval = -1;
                 } //connect()
             }
@@ -1342,11 +1366,12 @@ void MyFrame::OnQuit( wxCommandEvent &WXUNUSED(event) )
     m_readerTimer->Stop();
     delete m_readerTimer;
 
-    owwl_free(m_connection);
+    ServerDisconnect();
+    /*owwl_free(m_connection);
     sock_close(m_socket);
     m_socket = -1;
     g_connection = m_connection = NULL;
-    
+    */
     Close( true );
 } //MyFrame::OnQuit
 
@@ -1690,6 +1715,7 @@ bool MyApp::OnInit()
     wxFrame *frame = new MyFrame();
     frame->Show( true );
 
+    wxLogVerbose("Welcome to oww-wxgui");
     wxString appNameStr = GetAppName();
     LogPlatform();
 
@@ -1783,13 +1809,13 @@ unsigned long OwwlReaderTimer::GetInterval(void)
 void OwwlReaderTimer::Notify()
 {
     static time_t last = 0;
-    owwl_conn *connection = m_frame->GetOwwlConnection();
     bool doit = true;
     //wxLogVerbose("Readertimer:Notify");
 #if 1
     if(NULL != m_frame)
     {
-        if(NULL != m_frame->GetOwwlConnection())
+        owwl_conn *connection = m_frame->GetOwwlConnection();
+        if(NULL != connection)
         {
             //wxLogVerbose("interval=%d:", m_frame->m_connection->interval);
             m_frame->SetLatLongStatus();
@@ -1809,9 +1835,10 @@ void OwwlReaderTimer::Notify()
                     m_frame->SetStatusText("Server disconnect");
                     /* Try to reconnect */
                     /* but for now close up */
-                    sock_close(m_frame->m_socket);
+                    m_frame->ServerDisconnect();
+                    /*sock_close(m_frame->m_socket);
                     m_frame->m_socket = -1;
-                    g_connection = m_frame->m_connection = NULL;
+                    g_connection = m_frame->m_connection = NULL;*/
                     last = time(NULL);
                     break;
                 case Owwl_Read_Again:
@@ -1833,7 +1860,8 @@ void OwwlReaderTimer::Notify()
                     wxDateTime dataTime;
                     dataTime = wxDateTime(m_frame->GetOwwlDataTime());
                     wxLogVerbose("Read And Decode %s", dataTime.FormatTime());
-                    retval = owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, &(m_frame->buff));
+                    retval = owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, 
+                                                            &(m_frame->buff));
                     if(-1==retval)wxLogVerbose("owwl_tx_build failed");
                     retval = owwl_tx(connection, &(m_frame->buff));
                     if(-1==retval)wxLogVerbose("owwl_tx failed");
@@ -1849,7 +1877,7 @@ void OwwlReaderTimer::Notify()
         } //if(NULL != m_frame->m_connection)
         else
         {
-            // try to reconnect... someday...
+            m_frame->ServerReconnect();
         }
     } //if(NULL != m_frame)
 #endif
@@ -1914,17 +1942,17 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
 
     // try to find the images in the platform specific location
 #ifdef __WXGTK__
-    wxString dir = "/usr/local/share/oww/pixmaps/";
+    wxString dir = wxT("/usr/local/share/oww/pixmaps/");
 #elif __WXOSX_COCOA__
     //wxString dir = "/Library/Application Support/Oww/pixmaps/";
-    wxString dir = wxGetCwd() + "/pixmaps/";
+    wxString dir = wxGetCwd() + wxT("/pixmaps/");
 #elif __WXMSW__
-    wxString dir = /*wxGetOSDirectory() + */ "\\Program Files\\Oww\\pixmaps\\";
+    wxString dir = /*wxGetOSDirectory() + */ wxT("\\Program Files\\Oww\\pixmaps\\");
 #else
 #error define your platform
 #endif
 
-   wxLogVerbose("Looking for images in %s", dir);
+   wxLogVerbose(wxT("Looking for images in %s"), dir);
 
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
@@ -2377,7 +2405,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             m_frame->SetStatusText(now, 1);
             //wxDateTime dataTime = wxDateTime(m_frame->GetOwwlDataTime());
             //m_frame->SetStatusText(dataTime.FormatTime(), 1);
-
         }
         else
         {
