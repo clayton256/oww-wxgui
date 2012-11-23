@@ -138,7 +138,7 @@ owwl_conn *g_connection;
 // declarations
 // ============================================================================
 
-
+#if 0
 // Custom application traits class which we use to override the default log
 // target creation
 class MyAppTraits : public wxGUIAppTraits
@@ -146,7 +146,7 @@ class MyAppTraits : public wxGUIAppTraits
 public:
     virtual wxLog *CreateLogTarget();
 };
-
+#endif
 // ----------------------------------------------------------------------------
 // connection class
 // ----------------------------------------------------------------------------
@@ -162,10 +162,10 @@ private:
 };
 
 
+#if 0
 // ----------------------------------------------------------------------------
 // custom log target
 // ----------------------------------------------------------------------------
-
 class MyLogGui : public wxLogGui
 {
 private:
@@ -185,7 +185,7 @@ wxLog *MyAppTraits::CreateLogTarget()
 {
     return new MyLogGui;
 }
-
+#endif
 
 
 //-----------------------------------------------------------------------------
@@ -196,7 +196,7 @@ class MyApp: public wxApp
 {
 public:
     virtual bool OnInit();
-#ifdef WXGUI_COMMANDLINE
+#if 0
     virtual void OnInitCmdLine(wxCmdLineParser& parser);
     virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
     wxString GetCmdLine();
@@ -204,9 +204,10 @@ public:
     void LogPlatform();
 
 protected:
-    virtual wxAppTraits *CreateTraits() { return new MyAppTraits; }
+    //virtual wxAppTraits *CreateTraits() { return new MyAppTraits; }
 };
 
+#if 0
 static const wxCmdLineEntryDesc g_cmdLineDesc [] =
 {
      { wxCMD_LINE_SWITCH, "h", "help", 
@@ -217,7 +218,7 @@ static const wxCmdLineEntryDesc g_cmdLineDesc [] =
      { wxCMD_LINE_SWITCH, "s", "silent", "disables the GUI" },
      { wxCMD_LINE_NONE }
 };
-
+#endif
 
 wxString default_unit_names[] = {"<Metric>", "<Imperial>", "<Alt1>", "<Alt2>"};
 int unit_choices[OWWL_UNIT_CLASS_LIMIT];
@@ -405,7 +406,7 @@ class MyFrame: public wxFrame
 {
     OwwlReaderTimer * m_readerTimer;
     wxConfigBase *    m_config;
-    wxLogWindow *     m_logWindow;
+    //wxLogWindow *     m_logWindow;
 
 public:
     MyFrame();
@@ -1462,7 +1463,7 @@ void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 
 void MyFrame::OnMessages( wxCommandEvent &WXUNUSED(event) )
 {
-    m_logWindow->Show();
+    //m_logWindow->Show();
 } //MyFrame::OnMessages
 
 
