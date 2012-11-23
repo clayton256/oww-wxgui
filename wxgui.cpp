@@ -397,7 +397,7 @@ private:
 //-----------------------------------------------------------------------------
 // MyAuxilliaryFrame
 //-----------------------------------------------------------------------------
-class MyAuxilliaryFrame : public wxDialog
+class MyAuxilliaryFrame : public wxFrame
 {
 public:
     MyAuxilliaryFrame(wxWindow *parent, MyCanvas * canvas, const wxString& desc)
@@ -411,7 +411,6 @@ public:
     void SetGridUnits(void);
 
     wxGrid *m_grid;
-    MyFrame *m_parentFrame;
 
 private:
     bool m_updateGridUnits;
@@ -431,17 +430,15 @@ private:
 
     bool Create(wxWindow *parent, MyCanvas * canvas, const wxString& desc)
     {
-        if (!wxDialog::Create(parent, ID_AUX_FRAME, desc, 
-                    wxDefaultPosition, wxDefaultSize,
+        if (!wxFrame::Create(parent, ID_AUX_FRAME, desc, 
+                    wxDefaultPosition, wxSize(10,10),
                     wxDEFAULT_DIALOG_STYLE))
         {
             return false;
         }
 
         m_canvas = canvas;
-        m_parentFrame = (MyFrame*)parent;
-
-        m_grid = new wxGrid(this, wxID_ANY, wxPoint(1,1), wxDefaultSize);
+        m_grid = new wxGrid(this, wxID_ANY, wxPoint(1,1), wxSize(1,1));
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
         m_grid->EnableDragColSize(false);
@@ -473,7 +470,6 @@ private:
 #endif
             SetClientSize(gSz);
         }
-
         return true;
     } //Create
 
@@ -824,7 +820,7 @@ private:
 //-----------------------------------------------------------------------------
 // MyAuxilliaryFrame
 //-----------------------------------------------------------------------------
-BEGIN_EVENT_TABLE(MyAuxilliaryFrame, wxDialog)
+BEGIN_EVENT_TABLE(MyAuxilliaryFrame, wxFrame)
     EVT_PAINT(MyAuxilliaryFrame::OnPaint)
 #if 0
     EVT_ERASE_BACKGROUND(MyAuxilliaryFrame::OnEraseBackground)
@@ -1144,7 +1140,7 @@ MyFrame::MyFrame()
     if(true == m_restoreAuxFrame)
     {
         m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas, 
-                                                          _("Auxilliary Data"));
+                                                          wxT("Auxilliary Data"));
         m_canvas->m_auxilliaryFrame->Show();
     }
     return;
@@ -1432,7 +1428,7 @@ void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
     m_restoreAuxFrame = true;
     m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas,
-                                                        _("Auxilliary Data"));
+                                                        wxT("Auxilliary Data"));
     m_canvas->m_auxilliaryFrame->Show();
 } //MyFrame::OnAuxilliary
 
