@@ -873,6 +873,27 @@ MyFrame::MyFrame()
     WSADATA wsaData;
     int wsaerr;
 
+#ifdef WXOWWGUI_LOG_TO_FILE
+    wxFileName logPath = wxFileName(wxT("UpdaterLog.txt"));
+    if( logPath.Normalize(wxPATH_NORM_ALL, muApp::GetAppDir().GetPath()) )
+    {
+        // create log
+        logFile.Open(logPath.GetFullPath(), wxT("w"));
+        logTarget = new wxLogStderr(logFile.fp()); 
+        logTargetOld = wxLog::GetActiveTarget();
+        logTarget->SetVerbose(TRUE); 
+        wxLog::SetActiveTarget(logTarget); 
+     }
+#else
+    wxLogWindow *m_logWindow = new wxLogWindow(frame, wxT("Log") );
+    wxFrame *pLogFrame = m_logWindow->GetFrame();
+    pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP);
+    pLogFrame->SetSize( wxRect(0,50,400,250) );
+    //m_logWindow->SetVerbose(TRUE);
+    wxLog::SetActiveTarget(m_logWindow);
+    m_logWindow->Show();
+#endif
+
     // Using MAKEWORD macro, Winsock version request 2.2
     wVersionRequested = MAKEWORD(2, 2);
     wsaerr = WSAStartup(wVersionRequested, &wsaData);
@@ -1480,27 +1501,6 @@ bool MyApp::OnInit()
     wxInitAllImageHandlers();
 
     wxFrame *frame = new MyFrame();
-
-#ifdef WXOWWGUI_LOG_TO_FILE
-    wxFileName logPath = wxFileName(wxT("UpdaterLog.txt"));
-    if( logPath.Normalize(wxPATH_NORM_ALL, muApp::GetAppDir().GetPath()) )
-    {
-        // create log
-        logFile.Open(logPath.GetFullPath(), wxT("w"));
-        logTarget = new wxLogStderr(logFile.fp()); 
-        logTargetOld = wxLog::GetActiveTarget();
-        logTarget->SetVerbose(TRUE); 
-        wxLog::SetActiveTarget(logTarget); 
-        }
-#else
-    wxLogWindow *m_logWindow = new wxLogWindow(frame, wxT("Log") );
-    wxFrame *pLogFrame = m_logWindow->GetFrame();
-    pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP);
-    pLogFrame->SetSize( wxRect(0,50,400,250) );
-    m_logWindow->SetVerbose(TRUE);
-    wxLog::SetActiveTarget(m_logWindow);
-    m_logWindow->Show();
-#endif
 
     wxLogVerbose("Welcome to oww-wxgui");
 
@@ -2152,7 +2152,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             m_frame->SetStatusText(now, 1);
             //wxDateTime dataTime = wxDateTime(m_frame->GetOwwlDataTime());
             //m_frame->SetStatusText(dataTime.FormatTime(), 1);
-
         }
         else
         {
