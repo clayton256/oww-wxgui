@@ -1063,8 +1063,7 @@ MyFrame::MyFrame()
     {
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
-        (void)wxLogVerbose(_("The Winsock dll not found!"),
-                           "One wire Weather", wxICON_INFORMATION | wxOK );
+        wxLogVerbose(wxT("The Winsock dll not found!"));
     }
     /* Confirm that the WinSock DLL supports 2.2.*/
     /* Note that if the DLL supports versions greater    */
@@ -1075,9 +1074,8 @@ MyFrame::MyFrame()
     {
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
-        (void)wxLogVerbose(wxString::Format("Winsock dll is version %u.%u",
-                           LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)),
-                           "One wire Weather", wxICON_INFORMATION | wxOK );
+        wxLogVerbose(wxString::Format(wxT("Winsock dll is version %u.%u"),
+                           LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)));
         WSACleanup();
     }
 #endif
@@ -1097,10 +1095,10 @@ MyFrame::MyFrame()
 
     wxMenuBar *menu_bar = new wxMenuBar();
     menuImage = new wxMenu;
-    menuImage->Append(ID_AUXILLIARY, wxT("Auxilary"), "See other device values");
+    menuImage->Append(ID_AUXILLIARY, wxT("Auxilary"), wxT("See other device values"));
 #ifdef __WXMOTIF__
     // Motif doesn't do submenus, soooo....
-    menuImage->Append(ID_TOGGLEMENU, wxT("Toggle Units"), "Swap Units");
+    menuImage->Append(ID_TOGGLEMENU, wxT("Toggle Units"), wxT("Swap Units"));
 #else
     subMenu = new wxMenu;
     subMenu->AppendRadioItem(Menu_SubMenu_Radio0, wxT("Metric"), wxT("Metric"));
@@ -1114,10 +1112,10 @@ MyFrame::MyFrame()
 
     menuImage->Append(Menu_SubMenu, wxT("Change Units"), subMenu);
 #endif
-    menuImage->Append(ID_MAP, wxT("Map"), "Map this station");
-    menuImage->Append(ID_MESSAGES, wxT("Messages"), "Show Messages");
+    menuImage->Append(ID_MAP, wxT("Map"), wxT("Map this station"));
+    menuImage->Append(ID_MESSAGES, wxT("Messages"), wxT("Show Messages"));
     menuImage->AppendSeparator();
-    menuImage->Append(DIALOGS_PROPERTY_SHEET, wxT("Setup"), "Edit Preferences");
+    menuImage->Append(DIALOGS_PROPERTY_SHEET, wxT("Setup"), wxT("Edit Preferences"));
 #ifndef __WXOSX_COCOA__
     menuImage->AppendSeparator();
 #endif
@@ -1179,7 +1177,7 @@ int MyFrame::InitServerConnection(void)
     int addr_len;
     struct sockaddr *address = NULL;
 
-    wxLogVerbose(wxString::Format(wxT("Connecting to: %s\n"), m_hostname));
+    wxLogVerbose(wxString::Format(wxT("Connecting to: %s\n"), m_hostname.c_str()));
 
     if (m_hostname.c_str()[0] == '/') /* AF_LOCAL */
     {
@@ -1212,7 +1210,7 @@ int MyFrame::InitServerConnection(void)
         if(NULL == host)
         {
             wxLogVerbose(wxT("Unable to resolve host %s error:%d"), 
-                                                m_hostname, strerror(sock_error));
+                                    m_hostname.c_str(), strerror(sock_error));
             retval = -1;
         }
     } // local port vs address
@@ -1233,7 +1231,7 @@ int MyFrame::InitServerConnection(void)
             else
             {
                 wxLogVerbose(wxT("Connect failed, error: %s"),
-                                                            strerror(sock_error));
+                                                        strerror(sock_error));
                 ServerDisconnect();
                 retval = -1;
             } //connect()
@@ -1241,7 +1239,7 @@ int MyFrame::InitServerConnection(void)
         else
         {
             wxLogVerbose(wxT("Open socket failed, error: %s"),
-                                                            strerror(sock_error));
+                                                        strerror(sock_error));
             ServerDisconnect();
             retval = -1;
         } //socket()
@@ -1286,9 +1284,9 @@ void MyFrame::SetTitleBar()
     else
     {
         //can't seem to do titleNew.Format(wxT("oww-wxgui://%s:%d"), 
-        //                          m_hostname, (int)m_port); for some reason...
+        //                 m_hostname.c_str(), (int)m_port); for some reason...
         wxString titleNew = wxString::Format(wxT("oww-wxgui://%s:%d"), 
-                                                       m_hostname, (int)m_port);
+                                                m_hostname.c_str(), (int)m_port);
         //wxLogVerbose(titleNew);
         SetTitle(titleNew);
     }
@@ -1902,7 +1900,7 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
 #error define your platform
 #endif
 
-   wxLogVerbose(wxT("Looking for images in %s"), dir);
+   wxLogVerbose(wxT("Looking for images in %s"), dir.c_str());
 
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
