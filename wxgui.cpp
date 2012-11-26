@@ -50,6 +50,7 @@
 #include <wx/spinctrl.h>
 #include <wx/bookctrl.h>
 #include <wx/cmdline.h>
+#include <wx/stdpaths.h>
 
 // system includes
 #ifndef __WXMSW__
@@ -1912,19 +1913,24 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
     PrepareDC( dc );
     m_auxilliaryFrame = NULL;
 
-    // try to find the images in the platform specific location
+#if 0
 #ifdef __WXGTK__
     wxString dir = wxT("/usr/local/share/oww/pixmaps/");
 #elif __WXOSX_COCOA__
     //wxString dir = "/Library/Application Support/Oww/pixmaps/";
-    wxString dir = wxGetCwd() + wxT("/pixmaps/");
+    //wxString dir = wxGetCwd() + wxT("/pixmaps/");
 #elif __WXMSW__
     wxString dir = /*wxGetOSDirectory() + */ wxT("\\Program Files\\Oww\\pixmaps\\");
 #else
 #error define your platform
 #endif
-
-   wxLogVerbose(wxT("Looking for images in %s"), dir.c_str());
+#endif
+    // Try to find the images in the platform specific location
+    // Unix: prefix/share/appname
+    // Windows: the directory where the executable file is located
+    // Mac: appname.app/Contents/Resources bundle subdirectory
+    wxString dir = wxStandardPaths::Get().GetResourcesDir() + wxT("/pixmaps/");
+    wxLogVerbose(wxT("Looking for images in %s"), dir.c_str());
 
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
