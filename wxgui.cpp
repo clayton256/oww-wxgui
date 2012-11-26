@@ -74,7 +74,7 @@
 #define lround(num) ( (long)(num > 0 ? num + 0.5 : ceil(num - 0.5)) )
 #define sock_error WSAGetLastError()
 #define sock_close _close
-#define IOCTL(s,c,a) ioctlsocket(s,c, (long *) a)
+#define IOCTL(s,c,a) ioctlsocket(s,c,a)
 #endif
 
 // app include
@@ -926,10 +926,10 @@ Coordinate::Coordinate(double val)
     m_dec = val;
     m_dir = (0>m_dec)?-1:1;
     m_deg = m_dec * (double)m_dir;
-    m_deg = floor(m_deg);
+    m_deg = (int)floor((double)m_deg);
     double minsec = ((m_dec * m_dir) - (double)m_deg) * 60.0;
     m_min = floor(minsec);
-    m_sec = round((minsec - (double)m_min) * 60.0);
+    m_sec = lround((minsec - (double)m_min) * 60.0);
     m_rad = -0.0;
     return;
 }
@@ -1171,14 +1171,17 @@ MyFrame::MyFrame()
 int MyFrame::InitServerConnection(void)
 {
     int retval = 0;
-    struct hostent  *host;
-    struct sockaddr_un addr_un ;
+    struct hostent  *host = NULL;
+#ifndef __WXMSW__
+    struct sockaddr_un addr_un;
+#endif
     struct sockaddr_in addr_in;
     int addr_len;
     struct sockaddr *address = NULL;
 
     wxLogVerbose(wxString::Format(wxT("Connecting to: %s\n"), m_hostname.c_str()));
 
+#ifndef __WXMSW__
     if (m_hostname.c_str()[0] == '/') /* AF_LOCAL */
     {
         memset(&addr_un, 0, sizeof(addr_un)) ;
@@ -1188,6 +1191,7 @@ int MyFrame::InitServerConnection(void)
         addr_len = sizeof(addr_un.sun_family) + strlen(m_hostname) ;
     }
     else
+#endif
     {
         memset(&addr_in, 0, sizeof(struct sockaddr_in));
         bool ipnumaddr = m_hostname.Matches("??.??.??.??");
@@ -1229,8 +1233,12 @@ int MyFrame::InitServerConnection(void)
             if (connect(m_socket, address, addr_len) == 0)
             {
                 /* Mark the socket as non-blocking */
-                unsigned long a = 1L;
-                IOCTL(m_socket, FIONBIO, &a);
+#ifndef __WXMSW__
+                unsigned long mode = 1L;
+#else
+                u_long mode = 1;
+#endif
+                IOCTL(m_socket, FIONBIO, &mode);
             }
             else
             {
