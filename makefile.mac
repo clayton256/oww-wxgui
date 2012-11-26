@@ -38,9 +38,9 @@ $(APPNAME): $(EXENAME) Info.plist.in pixmaps/oww.icns
 	/bin/echo "APPL????" >$(APPNAME)/Contents/PkgInfo
 	ln -f $(EXENAME) $(APPNAME)/Contents/MacOS/$(EXENAME)
 	mkdir $(APPNAME)/Contents/Resources/pixmaps/
-	cp -f pixmaps/*.jpg $(APPNAME)/Contents/Resources/pixmaps/
-	cp -f pixmaps/rh.png $(APPNAME)/Contents/Resources/pixmaps/
-	cp -f pixmaps/oww.icns $(APPNAME)/Contents/Resources/oww.icns
+	\cp -f pixmaps/*.jpg $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/rh.png $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/oww.icns $(APPNAME)/Contents/Resources/oww.icns
 
 clean:
 	rm -rf *.o $(EXENAME) $(APPNAME)
