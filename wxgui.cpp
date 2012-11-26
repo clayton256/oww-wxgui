@@ -1184,8 +1184,8 @@ int MyFrame::InitServerConnection(void)
         memset(&addr_un, 0, sizeof(addr_un)) ;
         addr_un.sun_family = AF_LOCAL ;
         strcpy(addr_un.sun_path, m_hostname) ;
-        addr_len = sizeof(addr_un.sun_family) + strlen(m_hostname) ;
         address = (struct sockaddr *) &addr_un ;
+        addr_len = sizeof(addr_un.sun_family) + strlen(m_hostname) ;
     }
     else
     {
@@ -1201,13 +1201,17 @@ int MyFrame::InitServerConnection(void)
             host = gethostbyaddr((const char *)&addr_in, 
                                         sizeof(struct sockaddr_in), AF_INET);
         }
-        addr_in.sin_family = AF_INET;
-        addr_in.sin_port   = htons(m_port);
-        memcpy(&addr_in.sin_addr, host->h_addr_list[0], 
-                                                    sizeof(addr_in.sin_addr));
-        address = (struct sockaddr *) &addr_in;
-        addr_len = sizeof(addr_in);
-        if(NULL == host)
+
+        if(NULL != host)
+        {
+            addr_in.sin_family = AF_INET;
+            addr_in.sin_port   = htons(m_port);
+            memcpy(&addr_in.sin_addr, host->h_addr_list[0], 
+                                                     sizeof(addr_in.sin_addr));
+            address = (struct sockaddr *) &addr_in;
+            addr_len = sizeof(addr_in);
+        }
+        else
         {
             wxLogVerbose(wxT("Unable to resolve host %s error:%d"), 
                                     m_hostname.c_str(), strerror(sock_error));
@@ -1215,9 +1219,9 @@ int MyFrame::InitServerConnection(void)
         }
     } // local port vs address
 
+    // Got a valid address and addr_len (required below here) so lets move on
     if(NULL != address) 
     {
-        // valid address and addr_len required below here
         m_socket = socket(address->sa_family, SOCK_STREAM, 0);
         if(m_socket != -1)
         {
