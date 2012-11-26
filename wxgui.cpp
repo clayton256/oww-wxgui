@@ -1083,15 +1083,15 @@ MyFrame::MyFrame()
     SetIcon(wxICON(oww));
 
     m_config = wxConfigBase::Get();
-    m_config->Read("server", &m_hostname);
-    m_port = m_config->ReadLong("port", m_port);
-    m_pollInterval = m_config->ReadLong("pollInterval", m_pollInterval);
-    m_units = m_config->Read("units", OwwlUnit_Imperial);
+    m_config->Read(_T("server"), &m_hostname);
+    m_port = m_config->ReadLong(_T("port"), m_port);
+    m_pollInterval = m_config->ReadLong(_T("pollInterval"), m_pollInterval);
+    m_units = m_config->Read(_T("units"), OwwlUnit_Imperial);
     changeUnits(m_units);
-    m_browser = m_config->Read("browser", (long int)0);
-    m_config->Read("mapurl", &m_mapurl);
-    m_config->Read("launchStStart", &m_launchAtStart);
-    m_config->Read("animateDisplay", &m_animateDisplay);
+    m_browser = m_config->Read(_T("browser"), (long int)0);
+    m_config->Read(_T("mapurl"), &m_mapurl);
+    m_config->Read(_T("launchStStart"), &m_launchAtStart);
+    m_config->Read(_T("animateDisplay"), &m_animateDisplay);
 
     wxMenuBar *menu_bar = new wxMenuBar();
     menuImage = new wxMenu;
@@ -1487,16 +1487,16 @@ void MyFrame::OnPropertySheet(wxCommandEvent& WXUNUSED(event))
             m_browser = dialog.browserChoice->GetSelection();
             m_mapurl = dialog.urlCmdText->GetValue();
             m_config = wxConfigBase::Get();
-            m_config->Write("server", m_hostname);
-            m_config->Write("port", m_port);
-            m_config->Write("pollInterval", m_pollInterval);
-            m_config->Write("launchStStart", m_launchAtStart);
-            m_config->Write("units", m_units);
+            m_config->Write(_T("server"), m_hostname);
+            m_config->Write(_T("port"), m_port);
+            m_config->Write(_T("pollInterval"), m_pollInterval);
+            m_config->Write(_T("launchStStart"), m_launchAtStart);
+            m_config->Write(_T("units"), m_units);
             changeUnits(m_units);
-            m_config->Write("animateDisplay", m_animateDisplay);
-            m_config->Write("restoreAuxFrame", m_restoreAuxFrame);
-            m_config->Write("browser", m_browser);
-            m_config->Write("mapurl", m_mapurl);
+            m_config->Write(_T("animateDisplay"), m_animateDisplay);
+            m_config->Write(_T("restoreAuxFrame"), m_restoreAuxFrame);
+            m_config->Write(_T("browser"), m_browser);
+            m_config->Write(_T("mapurl"), m_mapurl);
             break;
         default:
             wxASSERT(true);
