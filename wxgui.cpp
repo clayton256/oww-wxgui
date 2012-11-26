@@ -429,7 +429,7 @@ public:
     {
         if (NULL == this) return NULL;
         ServerDisconnect();
-        if (NULL == this->m_connection)
+        if (NULL == this->m_connection) //actually should be assert()
         {
             InitServerConnection();
         }
