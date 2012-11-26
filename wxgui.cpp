@@ -196,6 +196,7 @@ class MyApp: public wxApp
 {
 public:
     virtual bool OnInit();
+    virtual int  OnExit();
 #if 0
     virtual void OnInitCmdLine(wxCmdLineParser& parser);
     virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
@@ -427,9 +428,11 @@ public:
     owwl_conn* ServerReconnect() 
     {
         if (NULL == this) return NULL;
-        if (NULL == this->m_connection) return NULL;
         ServerDisconnect();
-        InitServerConnection();
+        if (NULL == this->m_connection)
+        {
+            InitServerConnection();
+        }
         return m_connection;
     }
 
@@ -1082,14 +1085,14 @@ MyFrame::MyFrame()
 
     SetIcon(wxICON(oww));
 
-    m_config = wxConfigBase::Get();
-    m_config->Read(_T("server"), &m_hostname);
+    m_config = wxConfigBase::Get(_T("oww-wxgui"));
+    m_config->Read(_T("server"), &m_hostname, wxT("localhost"));
     m_port = m_config->ReadLong(_T("port"), m_port);
     m_pollInterval = m_config->ReadLong(_T("pollInterval"), m_pollInterval);
     m_units = m_config->Read(_T("units"), OwwlUnit_Imperial);
     changeUnits(m_units);
     m_browser = m_config->Read(_T("browser"), (long int)0);
-    m_config->Read(_T("mapurl"), &m_mapurl);
+    m_config->Read(_T("mapurl"), &m_mapurl, wxT(""));
     m_config->Read(_T("launchStStart"), &m_launchAtStart);
     m_config->Read(_T("animateDisplay"), &m_animateDisplay);
 
@@ -1130,14 +1133,13 @@ MyFrame::MyFrame()
     int widths[] = { -1, 200 };
     SetStatusWidths( 2, widths );
 
-    m_config->SetPath(_T("/MainFrame"));
     // restore frame position
-    int x = m_config->Read(_T("x"), 50);
-    int y = m_config->Read(_T("y"), 50);
+    int x = m_config->Read(_T("/MainFrame/x"), 50);
+    int y = m_config->Read(_T("/MainFrame/y"), 50);
     int w, h;
     GetClientSize(&w, &h);
-    w = m_config->Read(_T("w"), w);
-    h = m_config->Read(_T("h"), h);
+    w = m_config->Read(_T("/MainFrame/w"), w);
+    h = m_config->Read(_T("/MainFrame/h"), h);
     if(0 > x || 0 > y) // if upper left coner is off screen, move to 10,10
     {
         x = y = 10;
@@ -1197,7 +1199,7 @@ int MyFrame::InitServerConnection(void)
         bool ipnumaddr = m_hostname.Matches("??.??.??.??");
         if(false == ipnumaddr) /* ip addr is num */
         {
-            host = gethostbyname(m_hostname.c_str()) ;
+            host = gethostbyname(m_hostname.c_str());
         }
         else /* ip addr is name */
         {
@@ -1217,7 +1219,7 @@ int MyFrame::InitServerConnection(void)
         }
         else
         {
-            wxLogVerbose(wxT("Unable to resolve host %s error:%d"), 
+            wxLogVerbose(wxT("Unable to resolve host %s error:%s"), 
                                     m_hostname.c_str(), strerror(sock_error));
             retval = -1;
         }
@@ -1486,7 +1488,6 @@ void MyFrame::OnPropertySheet(wxCommandEvent& WXUNUSED(event))
             m_restoreAuxFrame = dialog.restoreAuxFrame->GetValue();
             m_browser = dialog.browserChoice->GetSelection();
             m_mapurl = dialog.urlCmdText->GetValue();
-            m_config = wxConfigBase::Get();
             m_config->Write(_T("server"), m_hostname);
             m_config->Write(_T("port"), m_port);
             m_config->Write(_T("pollInterval"), m_pollInterval);
@@ -1679,9 +1680,19 @@ bool MyApp::OnInit()
     wxString appNameStr = GetAppName();
     LogPlatform();
 
-
     return true;
 } //MyApp:OnInit
+
+
+int MyApp::OnExit()
+{
+  // clean up: Set() returns the active config object as Get() does, but unlike
+  // Get() it doesn't try to create one if there is none (definitely not what
+  // we want here!)
+  delete wxConfigBase::Set((wxConfigBase *) NULL);
+  return 0;
+}
+
 
 
 #if 0
@@ -1837,6 +1848,7 @@ void OwwlReaderTimer::Notify()
         } //if(NULL != m_frame->m_connection)
         else
         {
+            wxLogVerbose("OwwlReaderTimer::Notify Reconnectiong...");
             m_frame->ServerReconnect();
         }
     } //if(NULL != m_frame)
