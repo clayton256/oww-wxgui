@@ -10,6 +10,7 @@ APPNAME=$(EXENAME).app
 
 all: $(APPNAME)
 
+imageresources=body.jpg bottom3.jpg bottom6.jpg top2.jpg bottom1.jpg bottom4.jpg bottom7.jpg rh.png top3.jpg bottom2.jpg bottom5.jpg bottom8.jpg top1.jpg
 
 #http://iconverticons.com
 pixmaps/oww.icns: pixmaps/oww.png
@@ -36,7 +37,10 @@ $(APPNAME): $(EXENAME) Info.plist.in pixmaps/oww.icns
 		Info.plist.in >$(APPNAME)/Contents/Info.plist
 	/bin/echo "APPL????" >$(APPNAME)/Contents/PkgInfo
 	ln -f $(EXENAME) $(APPNAME)/Contents/MacOS/$(EXENAME)
-	cp -f pixmaps/oww.icns $(APPNAME)/Contents/Resources/oww.icns
+	mkdir $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/*.jpg $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/rh.png $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/oww.icns $(APPNAME)/Contents/Resources/oww.icns
 
 clean:
 	rm -rf *.o $(EXENAME) $(APPNAME)

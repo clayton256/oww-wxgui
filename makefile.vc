@@ -29,7 +29,7 @@ wxgui.obj: wxgui.cpp wxgui.h
 owwl.obj: $(OWWLDIR)\owwl.c
 	cl /c /nologo /TP /Foowwl.obj /MDd /DWIN32 /Zi /FdOww.pdb /D_DEBUG /Od /D_CRT_SECURE_NO_DEPRECATE=1 /D_CRT_NON_CONFORMING_SWPRINTFS=1 /D_SCL_SECURE_NO_WARNINGS=1 /D__WXMSW__ /D_UNICODE /W4 /I$(OWWLDIR)\src\ /D_WINDOWS /DNOPCH /GR /EHsc /Tc $(OWWLDIR)\owwl.c
 
-Oww.res: wxgui.rc
+Oww.res: wxgui.rc pixmaps\oww.ico pixmaps\oww.png
 	rc.exe /nologo /foOww.res /i ..\wxWidgets-2.9.4\include wxgui.rc
 #	rc /foOww.res /d WIN32 /d _DEBUG /d _CRT_SECURE_NO_DEPRECATE=1 /d _CRT_NON_CONFORMING_SWPRINTFS=1 /d _SCL_SECURE_NO_WARNINGS=1 /d __WXMSW__ /d _UNICODE  /i $(WXDIR)\lib\vc_lib\mswud /i . /i . /d _WINDOWS /i /d NOPCH $(WXDIR)\samples\sample.rc
 

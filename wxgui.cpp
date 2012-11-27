@@ -50,6 +50,7 @@
 #include <wx/spinctrl.h>
 #include <wx/bookctrl.h>
 #include <wx/cmdline.h>
+#include <wx/stdpaths.h>
 
 // system includes
 #ifndef __WXMSW__
@@ -74,7 +75,7 @@
 #define lround(num) ( (long)(num > 0 ? num + 0.5 : ceil(num - 0.5)) )
 #define sock_error WSAGetLastError()
 #define sock_close _close
-#define IOCTL(s,c,a) ioctlsocket(s,c, (long *) a)
+#define IOCTL(s,c,a) ioctlsocket(s,c,a)
 #endif
 
 // app include
@@ -196,6 +197,7 @@ class MyApp: public wxApp
 {
 public:
     virtual bool OnInit();
+    virtual int  OnExit();
 #if 0
     virtual void OnInitCmdLine(wxCmdLineParser& parser);
     virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
@@ -427,9 +429,11 @@ public:
     owwl_conn* ServerReconnect() 
     {
         if (NULL == this) return NULL;
-        if (NULL == this->m_connection) return NULL;
         ServerDisconnect();
-        InitServerConnection();
+        if (NULL == this->m_connection) //actually should be assert()
+        {
+            InitServerConnection();
+        }
         return m_connection;
     }
 
@@ -926,10 +930,10 @@ Coordinate::Coordinate(double val)
     m_dec = val;
     m_dir = (0>m_dec)?-1:1;
     m_deg = m_dec * (double)m_dir;
-    m_deg = floor(m_deg);
+    m_deg = (int)floor((double)m_deg);
     double minsec = ((m_dec * m_dir) - (double)m_deg) * 60.0;
     m_min = floor(minsec);
-    m_sec = round((minsec - (double)m_min) * 60.0);
+    m_sec = lround((minsec - (double)m_min) * 60.0);
     m_rad = -0.0;
     return;
 }
@@ -1082,16 +1086,16 @@ MyFrame::MyFrame()
 
     SetIcon(wxICON(oww));
 
-    m_config = wxConfigBase::Get();
-    m_config->Read("server", &m_hostname);
-    m_port = m_config->ReadLong("port", m_port);
-    m_pollInterval = m_config->ReadLong("pollInterval", m_pollInterval);
-    m_units = m_config->Read("units", OwwlUnit_Imperial);
+    m_config = wxConfigBase::Get(_T("oww-wxgui"));
+    m_config->Read(_T("server"), &m_hostname, wxT("localhost"));
+    m_port = m_config->ReadLong(_T("port"), m_port);
+    m_pollInterval = m_config->ReadLong(_T("pollInterval"), m_pollInterval);
+    m_units = m_config->Read(_T("units"), OwwlUnit_Imperial);
     changeUnits(m_units);
-    m_browser = m_config->Read("browser", (long int)0);
-    m_config->Read("mapurl", &m_mapurl);
-    m_config->Read("launchStStart", &m_launchAtStart);
-    m_config->Read("animateDisplay", &m_animateDisplay);
+    m_browser = m_config->Read(_T("browser"), (long int)0);
+    m_config->Read(_T("mapurl"), &m_mapurl, wxT(""));
+    m_config->Read(_T("launchStStart"), &m_launchAtStart);
+    m_config->Read(_T("animateDisplay"), &m_animateDisplay);
 
     wxMenuBar *menu_bar = new wxMenuBar();
     menuImage = new wxMenu;
@@ -1130,14 +1134,13 @@ MyFrame::MyFrame()
     int widths[] = { -1, 200 };
     SetStatusWidths( 2, widths );
 
-    m_config->SetPath(_T("/MainFrame"));
     // restore frame position
-    int x = m_config->Read(_T("x"), 50);
-    int y = m_config->Read(_T("y"), 50);
+    int x = m_config->Read(_T("/MainFrame/x"), 50);
+    int y = m_config->Read(_T("/MainFrame/y"), 50);
     int w, h;
     GetClientSize(&w, &h);
-    w = m_config->Read(_T("w"), w);
-    h = m_config->Read(_T("h"), h);
+    w = m_config->Read(_T("/MainFrame/w"), w);
+    h = m_config->Read(_T("/MainFrame/h"), h);
     if(0 > x || 0 > y) // if upper left coner is off screen, move to 10,10
     {
         x = y = 10;
@@ -1171,29 +1174,33 @@ MyFrame::MyFrame()
 int MyFrame::InitServerConnection(void)
 {
     int retval = 0;
-    struct hostent  *host;
-    struct sockaddr_un addr_un ;
+    struct hostent  *host = NULL;
+#ifndef __WXMSW__
+    struct sockaddr_un addr_un;
+#endif
     struct sockaddr_in addr_in;
     int addr_len;
     struct sockaddr *address = NULL;
 
     wxLogVerbose(wxString::Format(wxT("Connecting to: %s\n"), m_hostname.c_str()));
 
+#ifndef __WXMSW__
     if (m_hostname.c_str()[0] == '/') /* AF_LOCAL */
     {
         memset(&addr_un, 0, sizeof(addr_un)) ;
         addr_un.sun_family = AF_LOCAL ;
         strcpy(addr_un.sun_path, m_hostname) ;
-        addr_len = sizeof(addr_un.sun_family) + strlen(m_hostname) ;
         address = (struct sockaddr *) &addr_un ;
+        addr_len = sizeof(addr_un.sun_family) + strlen(m_hostname) ;
     }
     else
+#endif
     {
         memset(&addr_in, 0, sizeof(struct sockaddr_in));
         bool ipnumaddr = m_hostname.Matches("??.??.??.??");
         if(false == ipnumaddr) /* ip addr is num */
         {
-            host = gethostbyname(m_hostname.c_str()) ;
+            host = gethostbyname(m_hostname.c_str());
         }
         else /* ip addr is name */
         {
@@ -1201,23 +1208,27 @@ int MyFrame::InitServerConnection(void)
             host = gethostbyaddr((const char *)&addr_in, 
                                         sizeof(struct sockaddr_in), AF_INET);
         }
-        addr_in.sin_family = AF_INET;
-        addr_in.sin_port   = htons(m_port);
-        memcpy(&addr_in.sin_addr, host->h_addr_list[0], 
-                                                    sizeof(addr_in.sin_addr));
-        address = (struct sockaddr *) &addr_in;
-        addr_len = sizeof(addr_in);
-        if(NULL == host)
+
+        if(NULL != host)
         {
-            wxLogVerbose(wxT("Unable to resolve host %s error:%d"), 
+            addr_in.sin_family = AF_INET;
+            addr_in.sin_port   = htons(m_port);
+            memcpy(&addr_in.sin_addr, host->h_addr_list[0], 
+                                                     sizeof(addr_in.sin_addr));
+            address = (struct sockaddr *) &addr_in;
+            addr_len = sizeof(addr_in);
+        }
+        else
+        {
+            wxLogVerbose(wxT("Unable to resolve host %s error:%s"), 
                                     m_hostname.c_str(), strerror(sock_error));
             retval = -1;
         }
     } // local port vs address
 
+    // Got a valid address and addr_len (required below here) so lets move on
     if(NULL != address) 
     {
-        // valid address and addr_len required below here
         m_socket = socket(address->sa_family, SOCK_STREAM, 0);
         if(m_socket != -1)
         {
@@ -1225,8 +1236,12 @@ int MyFrame::InitServerConnection(void)
             if (connect(m_socket, address, addr_len) == 0)
             {
                 /* Mark the socket as non-blocking */
-                unsigned long a = 1L;
-                IOCTL(m_socket, FIONBIO, &a);
+#ifndef __WXMSW__
+                unsigned long mode = 1L;
+#else
+                u_long mode = 1;
+#endif
+                IOCTL(m_socket, FIONBIO, &mode);
             }
             else
             {
@@ -1474,17 +1489,16 @@ void MyFrame::OnPropertySheet(wxCommandEvent& WXUNUSED(event))
             m_restoreAuxFrame = dialog.restoreAuxFrame->GetValue();
             m_browser = dialog.browserChoice->GetSelection();
             m_mapurl = dialog.urlCmdText->GetValue();
-            m_config = wxConfigBase::Get();
-            m_config->Write("server", m_hostname);
-            m_config->Write("port", m_port);
-            m_config->Write("pollInterval", m_pollInterval);
-            m_config->Write("launchStStart", m_launchAtStart);
-            m_config->Write("units", m_units);
+            m_config->Write(_T("server"), m_hostname);
+            m_config->Write(_T("port"), m_port);
+            m_config->Write(_T("pollInterval"), m_pollInterval);
+            m_config->Write(_T("launchStStart"), m_launchAtStart);
+            m_config->Write(_T("units"), m_units);
             changeUnits(m_units);
-            m_config->Write("animateDisplay", m_animateDisplay);
-            m_config->Write("restoreAuxFrame", m_restoreAuxFrame);
-            m_config->Write("browser", m_browser);
-            m_config->Write("mapurl", m_mapurl);
+            m_config->Write(_T("animateDisplay"), m_animateDisplay);
+            m_config->Write(_T("restoreAuxFrame"), m_restoreAuxFrame);
+            m_config->Write(_T("browser"), m_browser);
+            m_config->Write(_T("mapurl"), m_mapurl);
             break;
         default:
             wxASSERT(true);
@@ -1667,9 +1681,19 @@ bool MyApp::OnInit()
     wxString appNameStr = GetAppName();
     LogPlatform();
 
-
     return true;
 } //MyApp:OnInit
+
+
+int MyApp::OnExit()
+{
+  // clean up: Set() returns the active config object as Get() does, but unlike
+  // Get() it doesn't try to create one if there is none (definitely not what
+  // we want here!)
+  delete wxConfigBase::Set((wxConfigBase *) NULL);
+  return 0;
+}
+
 
 
 #if 0
@@ -1825,6 +1849,7 @@ void OwwlReaderTimer::Notify()
         } //if(NULL != m_frame->m_connection)
         else
         {
+            wxLogVerbose("OwwlReaderTimer::Notify Reconnectiong...");
             m_frame->ServerReconnect();
         }
     } //if(NULL != m_frame)
@@ -1888,19 +1913,24 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
     PrepareDC( dc );
     m_auxilliaryFrame = NULL;
 
-    // try to find the images in the platform specific location
+#if 0
 #ifdef __WXGTK__
     wxString dir = wxT("/usr/local/share/oww/pixmaps/");
 #elif __WXOSX_COCOA__
     //wxString dir = "/Library/Application Support/Oww/pixmaps/";
-    wxString dir = wxGetCwd() + wxT("/pixmaps/");
+    //wxString dir = wxGetCwd() + wxT("/pixmaps/");
 #elif __WXMSW__
     wxString dir = /*wxGetOSDirectory() + */ wxT("\\Program Files\\Oww\\pixmaps\\");
 #else
 #error define your platform
 #endif
-
-   wxLogVerbose(wxT("Looking for images in %s"), dir.c_str());
+#endif
+    // Try to find the images in the platform specific location
+    // Unix: prefix/share/appname
+    // Windows: the directory where the executable file is located
+    // Mac: appname.app/Contents/Resources bundle subdirectory
+    wxString dir = wxStandardPaths::Get().GetResourcesDir() + wxT("/pixmaps/");
+    wxLogVerbose(wxT("Looking for images in %s"), dir.c_str());
 
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
