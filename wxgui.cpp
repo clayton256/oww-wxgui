@@ -1834,7 +1834,7 @@ void OwwlReaderTimer::Notify()
 
 void OwwlReaderTimer::start()
 {
-    wxLogVerbose("Poll Interval %d", m_pollInterval);
+    wxLogVerbose(wxT("Poll Interval %d"), m_pollInterval);
     wxTimer::Start(m_pollInterval);
     return;
 } // OwwlReader::start
