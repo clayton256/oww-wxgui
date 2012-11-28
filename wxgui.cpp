@@ -2092,10 +2092,10 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 
     if(m_frame)
     {
-        wxString now = wxNow ();
-        m_frame->SetStatusText(now, 1);
-        //wxDateTime dataTime = wxDateTime(m_frame->GetOwwlDataTime());
-        //m_frame->SetStatusText(dataTime.FormatTime(), 1);
+        //wxString now = wxNow ();
+        //m_frame->SetStatusText(now, 1);
+        wxDateTime dataTime = wxDateTime(m_frame->GetOwwlDataTime());
+        m_frame->SetStatusText(dataTime.FormatTime(), 1);
 
         if (top1_jpg.IsOk())
         {
