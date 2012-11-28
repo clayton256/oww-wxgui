@@ -669,20 +669,13 @@ int MyAuxilliaryFrame::InitPopulateCells()
                 int i;
                 for (i=0; i<conn->data_count; ++i)
                 {
-                    char linebuf[128], namebuff[128];
+                    char namebuff[128];
                     int length;
                     int arg = 0;
 
                     while (arg >= 0)
                     {
-                        int unit_class, unit;
-                        linebuf[0] = '\0';
                         namebuff[0] = '\0';
-                        unit_class = owwl_unit_class(data, arg);
-
-                        if((unit_class>=0) && (unit_class<OWWL_UNIT_CLASS_LIMIT))
-                            unit = unit_choices[unit_class] ;
-
                         m_grid->AppendRows();
                         m_grid->SetCellValue(owwl_name(&(data[i]), namebuff, 
                                                 128, &length, 0), cntr, 0);
@@ -721,7 +714,7 @@ int MyAuxilliaryFrame::UpdateCellsUnits()
 
                     while (arg >= 0)
                     {
-                        int unit_class, unit;
+                        int unit_class, unit = OwwlUnit_Metric;
                         unit_class = owwl_unit_class(data, arg) ;
 
                         if((unit_class>=0) && (unit_class<OWWL_UNIT_CLASS_LIMIT))
@@ -761,7 +754,7 @@ int MyAuxilliaryFrame::PopulateCellVals(void)
                     while (arg >= 0)
                     {
                         linebuf[0] = '\0';
-                        int unit_class, unit;
+                        int unit_class, unit = OwwlUnit_Metric;
                         unit_class = owwl_unit_class(data, arg);
 
                         if ((unit_class>=0) && (unit_class<OWWL_UNIT_CLASS_LIMIT))
@@ -1044,12 +1037,12 @@ MyFrame::MyFrame()
         wxLog::SetActiveTarget(logTarget); 
     }
 #endif
-#if 0
-    m_logWindow = new wxLogWindow(NULL, wxT("Log"));
+#if 1
+    m_logWindow = new wxLogWindow(this, wxT("Log"));
     wxFrame *pLogFrame = m_logWindow->GetFrame();
-    pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP);
+    pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE);
     pLogFrame->SetSize(wxRect(0,50,500,200));
-    m_logWindow->SetVerbose(false);
+    m_logWindow->SetVerbose(true);
     wxLog::SetActiveTarget(m_logWindow);
     m_logWindow->Show();
 #endif
@@ -1796,8 +1789,7 @@ void OwwlReaderTimer::Notify()
             while(doit)
             {
                 doit = false;
-                int retval = owwl_read(connection);
-                switch(retval)
+                switch(owwl_read(connection))
                 {
                     case Owwl_Read_Error:
                         wxLogVerbose(wxT("Protocol Error"));
@@ -1815,8 +1807,7 @@ void OwwlReaderTimer::Notify()
                         break;
                     case Owwl_Read_Again:
                         wxLogVerbose(wxT("Read Again"));
-                        retval = owwl_tx_poll_servers(connection);
-                        if(-1==retval)
+                        if(-1 == owwl_tx_poll_servers(connection))
                         {
                             wxLogVerbose(wxT("owwl_tx_poll_servers failed"));
                         }
@@ -1836,11 +1827,15 @@ void OwwlReaderTimer::Notify()
                         dataTime = wxDateTime(m_frame->GetOwwlDataTime());
                         wxLogVerbose(wxT("Read And Decode %s"), 
                                                         dataTime.FormatTime());
-                        retval = owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, 
-                                                                &(m_frame->buff));
-                        if(-1==retval)wxLogVerbose(wxT("owwl_tx_build failed"));
-                        retval = owwl_tx(connection, &(m_frame->buff));
-                        if(-1==retval)wxLogVerbose(wxT("owwl_tx failed"));
+                        if(-1 == owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, 
+                                                                &(m_frame->buff)))
+                        {
+                            wxLogVerbose(wxT("owwl_tx_build failed"));
+                        }
+                        if(-1 == owwl_tx(connection, &(m_frame->buff)))
+                        {
+                            wxLogVerbose(wxT("owwl_tx failed"));
+                        }
                         last = time(NULL);
                         doit = true;
                         break;
@@ -2088,7 +2083,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     //shadowDC = new wxShadowDC(this);
     //shadowDC->SetTextShadowColour(wxT("BLACK"));
     owwl_data *od = NULL;
-    int unit;
+    int unit = OwwlUnit_Metric;
 #ifdef __WXGTK__
     int fontSz = 13;
 #elif __WXOSX_COCOA__
@@ -2130,7 +2125,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
         if(m_frame->m_connection)
         {
             float speed = 0.0;
-            float gust = 0.0;
             float bearing = 0.0;
             char linebuf[128];
 
@@ -2143,7 +2137,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                     unit = unit_choices[unit_class];
                 }
                 speed =   od->val(od, unit, 0);
-                gust =    od->val(od, unit, 1);
                 bearing = od->val(od, unit, 2);
                 
                 static int inc_top = 0;
