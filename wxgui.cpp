@@ -1276,7 +1276,7 @@ void MyFrame::SetLatLongStatus()
     //                     (0>lon)?lon*-1:lon, (0>lon)?'W':'E'); 
     wxString strLatLon= wxString::Format(wxT("%d°%d\"%d\'%c/%d°%d\"%d\'%c"),
              Lat.getDeg(), Lat.getMin(), Lat.getSec(), (0>Lat.getDir())?'S':'N',
-             Lon.getDeg(), Lon.getMin(), Lon.getSec(), (0>Lon.getDir())?'E':'W');
+             Lon.getDeg(), Lon.getMin(), Lon.getSec(), (0>Lon.getDir())?'W':'E');
     SetStatusText(strLatLon);
     //wxLogVerbose(strLatLon);
 
