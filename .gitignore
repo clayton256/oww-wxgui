@@ -10,6 +10,7 @@ cov-int
 project.tgz
 .DS_Store
 .deps
+oww-wxgui
 Oww
 Oww.app
 descrip.mms

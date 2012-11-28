@@ -12,7 +12,7 @@
 WXDIR = $(WXWIN)
 OWWLDIR=..\owwl\src\
 
-PROGRAM=Oww
+PROGRAM=oww-wxgui
 _VERSIONSTR="0.85.0-1"
 OBJECTS = wxgui.obj owwl.obj
 
@@ -21,21 +21,21 @@ OBJECTS = wxgui.obj owwl.obj
 
 #cd "C:\Documents and Settings\Administrator\My Documents\Projects\oww-wxgui\ CC="cl" CXX="cl" CFLAGS="" CXXFLAGS=""  CPPFLAGS="" LDFLAGS="" CPP="cl / EP /nologo" SHARED="0"  WXUNIV="0" UNICODE="1" MSLU="0" BUILD="debug"  TARGET_CP U="" DEBUG_INFO="1"  DEBUG_FLAG="1" DEBUG_RUNTIME_LIBS="default"  MONOLITHIC="0" USE_GUI="1" USE_HTML="1"  USE_WEBVIEW="1" USE_MEDIA="1" USE_XRC="1"  USE_AUI="1 " USE_RIBBON="1"  USE_PROPGRID="1" USE_RICHTEXT="1"  USE_STC="1" USE_OPENGL="1" USE_QA="1"  USE_EXCEPTIONS="1" USE_RTTI="1"  USE_THREADS="1" USE_CAIRO="0"  OFFICIAL_BUILD="0" VENDOR="custom"  WX_FLAVOUR="" WX_LIB_FLAVOUR="" CFG=""  CPPUNIT_CFLAGS="" CPPUNIT_LIBS=""  RUNTIME_LIBS="dynamic" all
 
-all: Oww.exe
+all: $(PROGRAM).exe
 
 wxgui.obj: wxgui.cpp wxgui.h
-	cl /c /nologo /TP /Fowxgui.obj /MDd /DWIN32 /DVERSIONSTR=\"$(_VERSIONSTR)\" /Zi /FdOww.pdb /D_DEBUG /Od /D_CRT_SECURE_NO_DEPRECATE=1 /D_CRT_NON_CONFORMING_SWPRINTFS=1 /D_SCL_SECURE_NO_WARNINGS=1 /D__WXMSW__ /D_UNICODE /I$(WXDIR)lib\vc_lib\mswud /I$(WXDIR)include /W4 /I$(OWWLDIR) /D_WINDOWS /I. /DNOPCH /GR  /EHsc .\wxgui.cpp
+	cl /c /nologo /Fowxgui.obj /MDd /DWIN32 /DVERSIONSTR=\"$(_VERSIONSTR)\" /Zi /FdOww.pdb /D_DEBUG /Od /D_CRT_SECURE_NO_DEPRECATE=1 /D_CRT_NON_CONFORMING_SWPRINTFS=1 /D_SCL_SECURE_NO_WARNINGS=1 /D__WXMSW__ /D_UNICODE /I$(WXDIR)lib\vc_lib\mswud /I$(WXDIR)include /W4 /I$(OWWLDIR) /D_WINDOWS /I. /DNOPCH /GR /EHsc /TP .\wxgui.cpp
 
 owwl.obj: $(OWWLDIR)\owwl.c
-	cl /c /nologo /TP /Foowwl.obj /MDd /DWIN32 /Zi /FdOww.pdb /D_DEBUG /Od /D_CRT_SECURE_NO_DEPRECATE=1 /D_CRT_NON_CONFORMING_SWPRINTFS=1 /D_SCL_SECURE_NO_WARNINGS=1 /D__WXMSW__ /D_UNICODE /W4 /I$(OWWLDIR)\src\ /D_WINDOWS /DNOPCH /GR /EHsc /Tc $(OWWLDIR)\owwl.c
+	cl /c /nologo /Foowwl.obj /MDd /DWIN32 /Zi /FdOww.pdb /D_DEBUG /Od /D_CRT_SECURE_NO_DEPRECATE=1 /D_CRT_NON_CONFORMING_SWPRINTFS=1 /D_SCL_SECURE_NO_WARNINGS=1 /D__WXMSW__ /D_UNICODE /W4 /I$(OWWLDIR)\src\ /D_WINDOWS /DNOPCH /GR /EHsc /Tc $(OWWLDIR)\owwl.c
 
 Oww.res: wxgui.rc pixmaps\oww.ico pixmaps\oww.png
 	rc.exe /nologo /foOww.res /i ..\wxWidgets-2.9.4\include wxgui.rc
 #	rc /foOww.res /d WIN32 /d _DEBUG /d _CRT_SECURE_NO_DEPRECATE=1 /d _CRT_NON_CONFORMING_SWPRINTFS=1 /d _SCL_SECURE_NO_WARNINGS=1 /d __WXMSW__ /d _UNICODE  /i $(WXDIR)\lib\vc_lib\mswud /i . /i . /d _WINDOWS /i /d NOPCH $(WXDIR)\samples\sample.rc
 
-Oww.exe: wxgui.obj owwl.obj Oww.res
-	link /NOLOGO /OUT:Oww.exe /DEBUG /pdb:"Oww.pdb" /LIBPATH:$(WXDIR)\lib\vc_lib /SUBSYSTEM:WINDOWS wxbase29ud.lib wxmsw29ud_core.lib wxmsw29ud_adv.lib wxmsw29ud_propgrid.lib wxmsw29ud_xrc.lib wxmsw29ud_html.lib wxbase29ud_net.lib wxjpegd.lib wxpngd.lib wxtiffd.lib wxzlibd.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib comctl32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib rpcrt4.lib wsock32.lib wininet.lib winspool.lib owwl.obj wxgui.obj Oww.res 
+$(PROGRAM).exe: wxgui.obj owwl.obj Oww.res
+	link /NOLOGO /OUT:$(PROGRAM).exe /DEBUG /pdb:"Oww.pdb" /LIBPATH:$(WXDIR)\lib\vc_lib /SUBSYSTEM:WINDOWS wxbase29ud.lib wxmsw29ud_core.lib wxmsw29ud_adv.lib wxmsw29ud_propgrid.lib wxmsw29ud_xrc.lib wxmsw29ud_html.lib wxbase29ud_net.lib wxjpegd.lib wxpngd.lib wxtiffd.lib wxzlibd.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib comctl32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib rpcrt4.lib wsock32.lib wininet.lib winspool.lib owwl.obj wxgui.obj Oww.res 
 
 
 clean:
-	del *.obj Oww.exe *.res *.pch *.ilk *.pdb Oww.exe.manifest
+	del *.obj $(PROGRAM).exe *.res *.pch *.ilk *.pdb $(PROGRAM).exe.manifest
