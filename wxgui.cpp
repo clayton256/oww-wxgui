@@ -945,7 +945,7 @@ Coordinate::Coordinate(double val)
 void MyFrame::changeUnits(int units)
 {
     int i;
-    for (i=0; i<1000 /*OWWL_UNIT_CLASS_LIMIT*/; ++i)
+    for (i=0; i<OWWL_UNIT_CLASS_LIMIT; ++i)
     {
         unit_choices[i] = units;
     }
