@@ -514,6 +514,7 @@ public:
     bool           m_animateDisplay;
     int            m_browser;
     bool           m_restoreAuxFrame;
+    int            m_fontSz;
 private:
     enum
     {
@@ -1022,6 +1023,7 @@ MyFrame::MyFrame()
     m_browser = 0;
     m_mapurl = wxEmptyString;
     m_restoreAuxFrame = false;
+    m_fontSz = 14;
 
 #if 0
     //wxApp::GetAppDir().GetPath())
@@ -1091,6 +1093,7 @@ MyFrame::MyFrame()
             wxT("http://www.openstreetmap.org/?lat=%f&lon=%f&zoom=15&layers=M"));
     m_config->Read(_T("launchStStart"), &m_launchAtStart);
     m_config->Read(_T("animateDisplay"), &m_animateDisplay);
+    m_fontSz = m_config->Read(_T("fontSz"), m_fontSz);
 
     wxMenuBar *menu_bar = new wxMenuBar();
     menuImage = new wxMenu;
@@ -2057,17 +2060,8 @@ void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
     wxPaintDC dc( this );
     //DoPrepareDC(dc);
     PrepareDC( dc );
-#ifdef __WXGTK__
-    int fontSz = 14;
-#elif __WXOSX_COCOA__
-    int fontSz = 14;
-#elif __WXMSW__
-    int fontSz = 14;
-#else
-#error define your platform
-#endif
 
-    wxFont f = wxFont(fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
+    wxFont f = wxFont(m_frame->m_fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
                                                         wxFONTWEIGHT_BOLD);
     wxColor fc = dc.GetTextForeground();
     dc.SetFont(f);
@@ -2089,17 +2083,8 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     //shadowDC->SetTextShadowColour(wxT("BLACK"));
     owwl_data *od = NULL;
     int unit = OwwlUnit_Metric;
-#ifdef __WXGTK__
-    int fontSz = 13;
-#elif __WXOSX_COCOA__
-    int fontSz = 16;
-#elif __WXMSW__
-    int fontSz = 12;
-#else
-#error define your platform
-#endif
 
-    wxFont f = wxFont(fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
+    wxFont f = wxFont(m_frame->m_fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
                                                         wxFONTWEIGHT_BOLD);
     dc.SetFont(f);
     dc.SetTextForeground( wxT("WHITE") );
