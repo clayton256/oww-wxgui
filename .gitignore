@@ -4,6 +4,8 @@
 *.ilk
 *.pdb
 *.res
+*.sln
+*.suo
 cov-int
 project.tgz
 .DS_Store

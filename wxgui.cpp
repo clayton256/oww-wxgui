@@ -1271,10 +1271,10 @@ void MyFrame::SetLatLongStatus()
     float lon = GetOwwlLongitude();
     Coordinate Lat = Coordinate(lat);
     Coordinate Lon = Coordinate(lon);
-    //wxString strLatLon =  wxString::Format(wxT("%2.5fÂ° %3.5f%c"),
+    //wxString strLatLon =  wxString::Format(wxT("%2.5f° %3.5f°"),
     //                     (0>lat)?lat*-1:lat, (0>lat)?'S':'N', 
     //                     (0>lon)?lon*-1:lon, (0>lon)?'W':'E'); 
-    wxString strLatLon= wxString::Format(wxT("%dÂ°%d\"%d\'%c/%d\370%d\"%d\'%c"),
+    wxString strLatLon= wxString::Format(wxT("%d°%d\"%d\'%c/%d°%d\"%d\'%c"),
              Lat.getDeg(), Lat.getMin(), Lat.getSec(), (0>Lat.getDir())?'S':'N',
              Lon.getDeg(), Lon.getMin(), Lon.getSec(), (0>Lon.getDir())?'E':'W');
     SetStatusText(strLatLon);
