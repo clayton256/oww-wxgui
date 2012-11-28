@@ -27,7 +27,7 @@ _VERSIONSTR="0.85.0-1"
 
 .SUFFIXES:	.o .cpp .c
 
-all:    $(PROGRAM)
+all: oww-wxgui #$(PROGRAM)
 
 cppcheck:
 	$(CPPCHECK) --verbose --enable=all -I../wxWidgets-2.9.4/buildgtk/lib/wx/include/gtk2-unicode-2.9/ -I../wxWidgets-2.9.4/include/ -D__GNUC__ -D__GNUG__ -D_FILE_OFFSET_BITS=64 -DWXUSINGDLL -D__UNIX__ -D__WXGTK__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src/ wxgui.cpp
@@ -39,11 +39,19 @@ owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
 .c.o :
 	$(CC) -c -D__WXGUI__ -DNOGUI -o $@ $(OWWLBASE)/src/$<
 
-.cpp.o : wxgui.h
-	$(CC) -c `wx-config --cflags` -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src/ -g -O0 -o $@ $<
+#.cpp.o : wxgui.h
+#	$(CC) -c `wx-config --cflags` -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src/ -g -O0 -o $@ $<
 
-$(PROGRAM):	$(OBJECTS)
-	$(CC) -o $(PROGRAM) $(OBJECTS) `wx-config --libs`
+wxgui.o: wxgui.cpp wxgui.h
+	/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/bk-deps g++ -c -o wxgui.o -D__WXGTK__ -DVERSIONSTR=\"$(_VERSIONSTR)\" -I/home/mark/Projects/wxWidgets-2.9.4/include/ -I. -DWXUSINGDLL -I$(OWWLBASE)/src/ -Wall -Wundef -Wunused-parameter -Wno-ctor-dtor-privacy -Woverloaded-virtual -D_FILE_OFFSET_BITS=64 -I/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/lib/wx/include/gtk2-unicode-2.9 -I../../../include -pthread -I/usr/include/gtk-2.0 -I/usr/lib/i386-linux-gnu/gtk-2.0/include -I/usr/include/atk-1.0 -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/pango-1.0 -I/usr/include/gio-unix-2.0/ -I/usr/include/glib-2.0 -I/usr/lib/i386-linux-gnu/glib-2.0/include -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -DWX_PRECOMP -pthread -ggdb -O0 -pthread -I/usr/include/gtk-unix-print-2.0 -I/usr/include/gtk-2.0 -I/usr/include/atk-1.0 -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/pango-1.0 -I/usr/lib/i386-linux-gnu/gtk-2.0/include -I/usr/include/gio-unix-2.0/ -I/usr/include/glib-2.0 -I/usr/lib/i386-linux-gnu/glib-2.0/include -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -fvisibility=hidden -fvisibility-inlines-hidden wxgui.cpp
+
+oww-wxgui: wxgui.o owwl.o
+	g++ -o $@ wxgui.o owwl.o -L/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/lib  -Wl,-rpath,/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/lib -pthread -lwx_gtk2u_adv-2.9 -lwx_gtk2u_core-2.9 -lwx_baseu-2.9 -lwxtiff-2.9 -lwxjpeg-2.9 -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgio-2.0 -lpangoft2-1.0 -lpangocairo-1.0 -lgdk_pixbuf-2.0 -lcairo -lpango-1.0 -lfreetype -lfontconfig -lgobject-2.0 -lgthread-2.0 -lrt -lglib-2.0 -lX11 -lSM -lpng -lz -lwxregexu-2.9 -pthread -Wl,--version-script,/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/version-script -lz -ldl -lm  -lz -ldl -lm
+
+
+
+#$(PROGRAM):	$(OBJECTS)
+#	$(CC) -o $(PROGRAM) $(OBJECTS) `wx-config --libs`
 
 clean: 
 	rm -f *.o $(PROGRAM)

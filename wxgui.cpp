@@ -128,6 +128,7 @@ enum
 wxString g_VersionStr = VERSIONSTR;
 owwl_conn *g_connection;
 
+wxLogWindow *     m_logWindow;
 
 #ifndef wxHAS_IMAGES_IN_RESOURCES
     #include "pixmaps/oww_xpm.xpm"
@@ -408,7 +409,6 @@ class MyFrame: public wxFrame
 {
     OwwlReaderTimer * m_readerTimer;
     wxConfigBase *    m_config;
-    wxLogWindow *     m_logWindow;
 
 public:
     MyFrame();
@@ -1044,12 +1044,12 @@ MyFrame::MyFrame()
         wxLog::SetActiveTarget(logTarget); 
     }
 #endif
-#if 1
-    m_logWindow = new wxLogWindow(this, wxT("Log"));
+#if 0
+    m_logWindow = new wxLogWindow(NULL, wxT("Log"));
     wxFrame *pLogFrame = m_logWindow->GetFrame();
     pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP);
     pLogFrame->SetSize(wxRect(0,50,500,200));
-    m_logWindow->SetVerbose(true);
+    m_logWindow->SetVerbose(false);
     wxLog::SetActiveTarget(m_logWindow);
     m_logWindow->Show();
 #endif
@@ -1093,7 +1093,8 @@ MyFrame::MyFrame()
     m_units = m_config->Read(_T("units"), OwwlUnit_Imperial);
     changeUnits(m_units);
     m_browser = m_config->Read(_T("browser"), (long int)0);
-    m_config->Read(_T("mapurl"), &m_mapurl, wxT(""));
+    m_config->Read(_T("mapurl"), &m_mapurl, 
+            wxT("http://www.openstreetmap.org/?lat=%f&lon=%f&zoom=15&layers=M"));
     m_config->Read(_T("launchStStart"), &m_launchAtStart);
     m_config->Read(_T("animateDisplay"), &m_animateDisplay);
 
@@ -1182,7 +1183,7 @@ int MyFrame::InitServerConnection(void)
     int addr_len;
     struct sockaddr *address = NULL;
 
-    wxLogVerbose(wxString::Format(wxT("Connecting to: %s\n"), m_hostname.c_str()));
+    wxLogVerbose(wxString::Format(wxT("Connecting to: %s"), m_hostname.c_str()));
 
 #ifndef __WXMSW__
     if (m_hostname.c_str()[0] == '/') /* AF_LOCAL */
@@ -1677,7 +1678,6 @@ bool MyApp::OnInit()
     wxFrame *frame = new MyFrame();
     frame->Show( true );
 
-    wxLogVerbose(wxT("Welcome to oww-wxgui"));
     wxString appNameStr = GetAppName();
     LogPlatform();
 
@@ -1793,59 +1793,63 @@ void OwwlReaderTimer::Notify()
             m_frame->SetLatLongStatus();
             m_frame->SetTitleBar();
 
-          while(doit)
-          {
-            doit = false;
-            int retval = owwl_read(connection);
-            switch(retval)
+            while(doit)
             {
-                case Owwl_Read_Error:
-                    wxLogVerbose(wxT("Protocol Error"));
-                    // drop thru to disconnect break;
-                case Owwl_Read_Disconnect:
-                    wxLogVerbose(wxT("Server Disconnect"));
-                    m_frame->SetStatusText(wxT("Server disconnect"));
-                    /* Try to reconnect */
-                    /* but for now close up */
-                    m_frame->ServerDisconnect();
-                    /*sock_close(m_frame->m_socket);
-                    m_frame->m_socket = -1;
-                    g_connection = m_frame->m_connection = NULL;*/
-                    last = time(NULL);
-                    break;
-                case Owwl_Read_Again:
-                    wxLogVerbose(wxT("Read Again"));
-                    retval = owwl_tx_poll_servers(connection);
-                    if(-1==retval)wxLogVerbose(wxT("owwl_tx_poll_servers failed"));
-                    wxMilliSleep(10); /* Sleep for 10 ms */
-                    if((last != 0) 
-                        && (time(NULL)>(last+connection->interval*2+1)))
-                    {
-                        wxLogVerbose(wxT("Timeout"));
-                        //check_conn(conn) ;
-                        last = time(NULL);
-                        m_frame->ServerReconnect();
-                    }
-                    break;
-                case Owwl_Read_Read_And_Decoded:
+                doit = false;
+                int retval = owwl_read(connection);
+                switch(retval)
                 {
-                    wxDateTime dataTime;
-                    dataTime = wxDateTime(m_frame->GetOwwlDataTime());
-                    wxLogVerbose(wxT("Read And Decode %s"), dataTime.FormatTime());
-                    retval = owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, 
-                                                            &(m_frame->buff));
-                    if(-1==retval)wxLogVerbose(wxT("owwl_tx_build failed"));
-                    retval = owwl_tx(connection, &(m_frame->buff));
-                    if(-1==retval)wxLogVerbose(wxT("owwl_tx failed"));
-                    last = time(NULL);
-                    doit = true;
-                    break;
-                }
-                default:
-                    wxASSERT(wxT("Read Default"));
-                    break;
-            } //switch(owwl_read(m_frame->m_connection))
-          } //while(do)
+                    case Owwl_Read_Error:
+                        wxLogVerbose(wxT("Protocol Error"));
+                        // drop thru to disconnect break;
+                    case Owwl_Read_Disconnect:
+                        wxLogVerbose(wxT("Server Disconnect"));
+                        m_frame->SetStatusText(wxT("Server disconnect"));
+                        /* Try to reconnect */
+                        /* but for now close up */
+                        m_frame->ServerDisconnect();
+                        /*sock_close(m_frame->m_socket);
+                        m_frame->m_socket = -1;
+                        g_connection = m_frame->m_connection = NULL;*/
+                        last = time(NULL);
+                        break;
+                    case Owwl_Read_Again:
+                        wxLogVerbose(wxT("Read Again"));
+                        retval = owwl_tx_poll_servers(connection);
+                        if(-1==retval)
+                        {
+                            wxLogVerbose(wxT("owwl_tx_poll_servers failed"));
+                        }
+                        wxMilliSleep(10); /* Sleep for 10 ms */
+                        if((last != 0) 
+                            && (time(NULL)>(last+connection->interval*2+1)))
+                        {
+                            wxLogVerbose(wxT("Timeout"));
+                            //check_conn(conn) ;
+                            last = time(NULL);
+                            m_frame->ServerReconnect();
+                        }
+                        break;
+                    case Owwl_Read_Read_And_Decoded:
+                    {
+                        wxDateTime dataTime;
+                        dataTime = wxDateTime(m_frame->GetOwwlDataTime());
+                        wxLogVerbose(wxT("Read And Decode %s"), 
+                                                        dataTime.FormatTime());
+                        retval = owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, 
+                                                                &(m_frame->buff));
+                        if(-1==retval)wxLogVerbose(wxT("owwl_tx_build failed"));
+                        retval = owwl_tx(connection, &(m_frame->buff));
+                        if(-1==retval)wxLogVerbose(wxT("owwl_tx failed"));
+                        last = time(NULL);
+                        doit = true;
+                        break;
+                    }
+                    default:
+                        wxASSERT(wxT("Read Default"));
+                        break;
+                } //switch(owwl_read(m_frame->m_connection))
+            } //while(do)
         } //if(NULL != m_frame->m_connection)
         else
         {
@@ -1916,6 +1920,7 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
 #if 0
 #ifdef __WXGTK__
     wxString dir = wxT("/usr/local/share/oww/pixmaps/");
+SetInstallPrefix()
 #elif __WXOSX_COCOA__
     //wxString dir = "/Library/Application Support/Oww/pixmaps/";
     //wxString dir = wxGetCwd() + wxT("/pixmaps/");
@@ -1926,11 +1931,12 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
 #endif
 #endif
     // Try to find the images in the platform specific location
-    // Unix: prefix/share/appname
+    // Unix: <prefix>/share/appname where prefix is "/usr/local"
+    //       unless changed by ::SetInstallPrefix()
     // Windows: the directory where the executable file is located
     // Mac: appname.app/Contents/Resources bundle subdirectory
     wxString dir = wxStandardPaths::Get().GetResourcesDir() + wxT("/pixmaps/");
-    wxLogVerbose(wxT("Looking for images in %s"), dir.c_str());
+    wxLogVerbose(wxString::Format(wxT("Looking for images in %s"), dir.c_str()));
 
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
