@@ -425,6 +425,7 @@ public:
 
     void SetLatLongStatus();
     void SetTitleBar();
+    void SetAuxFrameReady(bool f = true) { m_auxFrameReady = f; }
 
     owwl_conn* ServerReconnect() 
     {
@@ -535,6 +536,8 @@ private:
 
     void changeUnits(int units);
 
+    bool m_auxFrameReady;
+
     DECLARE_DYNAMIC_CLASS(MyFrame)
     DECLARE_EVENT_TABLE()
 }; //class MyFrame
@@ -585,11 +588,12 @@ private:
             return false;
         }
 
+        m_updateGridUnits = false;
         m_canvas = canvas;
         m_mainFrame = canvas->m_frame;
         m_connection = canvas->m_frame->m_connection;
 
-        m_grid = new wxGrid(this, wxID_ANY, wxPoint(1,1), wxSize(1,1));
+        m_grid = new wxGrid(this, wxID_ANY, wxPoint(0,0), wxDefaultSize);
         m_grid->EnableEditing(false);
         m_grid->EnableDragRowSize(false);
         m_grid->EnableDragColSize(false);
@@ -614,11 +618,7 @@ private:
             bSz.SetWidth(gSz.GetWidth()-10);
             wxButton *b = new wxButton(this, wxID_OK, _("OK"), pt, bSz);
             bSz = b->GetDefaultSize();
-#ifdef __WXOSX_COCOA__
             gSz.IncBy(0, bSz.GetHeight()*1.5);
-#else
-            gSz.IncBy(0, bSz.GetHeight());
-#endif
             SetClientSize(gSz);
         }
         return true;
@@ -1003,6 +1003,7 @@ MyFrame::MyFrame()
                 wxDEFAULT_FRAME_STYLE & ~(wxRESIZE_BORDER|wxMAXIMIZE_BOX)
               )
 {
+    m_auxFrameReady = false;
     menuImage = NULL;
     subMenu = NULL;
     m_connection = NULL;
@@ -1408,10 +1409,13 @@ private:
 
 void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 {
-    m_restoreAuxFrame = true;
-    m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas,
-                                                        wxT("Auxilliary Data"));
-    m_canvas->m_auxilliaryFrame->Show();
+    if(true == m_auxFrameReady)
+    {
+        m_restoreAuxFrame = true;
+        m_canvas->m_auxilliaryFrame = new MyAuxilliaryFrame(this, m_canvas,
+                                                            wxT("Auxilliary Data"));
+        m_canvas->m_auxilliaryFrame->Show();
+    }
 } //MyFrame::OnAuxilliary
 
 
@@ -1838,6 +1842,7 @@ void OwwlReaderTimer::Notify()
                         }
                         last = time(NULL);
                         doit = true;
+                        m_frame->SetAuxFrameReady(true);
                         break;
                     }
                     default:
@@ -2053,9 +2058,9 @@ void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
     //DoPrepareDC(dc);
     PrepareDC( dc );
 #ifdef __WXGTK__
-    int fontSz = 12;
+    int fontSz = 14;
 #elif __WXOSX_COCOA__
-    int fontSz = 16;
+    int fontSz = 14;
 #elif __WXMSW__
     int fontSz = 14;
 #else
