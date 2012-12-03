@@ -17,14 +17,15 @@ pixmaps/oww.icns: pixmaps/oww.png
 	sips -s format icns pixmaps/oww.png --out pixmaps/oww.icn
 
 owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
-	$(WXWIDGETSBUILD)/bk-deps gcc -mmacosx-version-min=10.5 -c -o owwl.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -DHAVE_GETTIMEOFDAY=1 -Wall -Wundef -Wunused-parameter -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src -DWX_PRECOMP -g -O0 -fno-common $(OWWLBASE)/src/owwl.c
+	$(WXWIDGETSBUILD)/bk-deps gcc -mmacosx-version-min=10.5 -c -o owwl.o -DNOGUI -DHAVE_GETTIMEOFDAY=1 -Wall -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src -g -O0 -fno-common $(OWWLBASE)/src/owwl.c
 
 
 wxgui.o: wxgui.cpp wxgui.h pixmaps/oww_xpm.xpm
-	$(WXWIDGETSBUILD)/bk-deps g++ -mmacosx-version-min=10.5 -c -o wxgui.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -Wno-ctor-dtor-privacy -Woverloaded-virtual -Wno-deprecated-declarations -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src  -DWX_PRECOMP -g -O0 -fno-common wxgui.cpp
+	$(WXWIDGETSBUILD)/bk-deps g++ `$(WXWIDGETSBUILD)/wx-config --cxxflags` -c -o wxgui.o -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src -g -O0 -fno-common wxgui.cpp
+#	$(WXWIDGETSBUILD)/bk-deps g++ -mmacosx-version-min=10.5 -c -o wxgui.o -D__WXGUI__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -D__WXOSX_COCOA__ -Wall -Wundef -Wunused-parameter -Wno-ctor-dtor-privacy -Woverloaded-virtual -Wno-deprecated-declarations -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src  -DWX_PRECOMP -g -O0 -fno-common wxgui.cpp
 
 $(EXENAME): wxgui.o owwl.o
-	g++ -mmacosx-version-min=10.5 -o $(EXENAME) owwl.o wxgui.o -L$(WXWIDGETSBUILD)/lib -framework IOKit -framework Carbon -framework Cocoa -framework AudioToolbox -framework System -framework OpenGL -lwx_osx_cocoau_adv-2.9 -lwx_osx_cocoau_html-2.9 -lwx_osx_cocoau_core-2.9 -lwx_baseu-2.9 -lwxtiff-2.9 -lwxjpeg-2.9 -lwxpng-2.9 -framework WebKit -lwxregexu-2.9 -framework IOKit -framework Carbon -framework Cocoa -framework AudioToolbox -framework System -framework OpenGL -lz -lpthread -liconv -lz -lpthread -liconv
+	g++ -mmacosx-version-min=10.5 -o $(EXENAME) owwl.o wxgui.o `$(WXWIDGETSBUILD)/wx-config --libs`
 
 $(APPNAME): $(EXENAME) Info.plist.in pixmaps/oww.icns
 	SetFile -t APPL $(EXENAME)
