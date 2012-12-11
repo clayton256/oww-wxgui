@@ -472,8 +472,8 @@ public:
 
     time_t GetOwwlDataTime(void)
     {
-        if (NULL == this) return -0;
-        if (NULL == this->m_connection) return -0;
+        if (NULL == this) return 0;
+        if (NULL == this->m_connection) return 0;
         return this->m_connection->data_time
               +this->m_connection->data_time_usec;
     }
