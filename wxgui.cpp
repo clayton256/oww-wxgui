@@ -174,11 +174,11 @@ private:
 };
 
 /*                                 hPa          inHg          mmHg
- * Steady:                    Less than 0.1     0.003         0.08
+ * Steady, less than               0.1          0.003         0.08
  * Slowly rising or falling     0.15 to 1.5  0.003 to 0.04  0.08 to 1.1
  * Rising or falling             1.6 to 3.5   0.05 to 0.1   1.2 to 2.6
  * Quickly rising or falling     3.6 to 6.0   0.1 to 0.18   2.7 to 4.5
- * Rapidly rising or falling  More than 6.0      0.18          4.5
+ * Rapidly rising or falling more than 6.0      0.18           4.5
  * (hPa == millibar)
  * To convert inHg to millibars, multiply the inches value by 33.8637526
  * To convert millibars to inHg, multiply the millibar value by 0.0295301
@@ -2464,7 +2464,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 DrawText( wxString::Format("Tb: %s %s", 
                             od->str(od, linebuf, 128, unit, -1, 0),
                             owwl_unit_name(od, unit, 0)), 
-                        wxT("YELLOW"), wxT("BLACK"), wxPoint(280, 290));
+                        wxT("YELLOW"), wxT("BLACK"), wxPoint(280, 285));
             }
             else
             {
@@ -2475,51 +2475,51 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             if(NULL != od)
             {
                 DrawText(wxString::Format("BP: %s %s", 
-                                        od->str(od, linebuf, 128, unit, 3, 0),
+                                        od->str(od, linebuf, 128, unit, 4, 0),
                                         owwl_unit_name(od, unit, 0)), 
-                        wxT("YELLOW"), wxT("BLACK"), wxPoint(280,320));
+                        wxT("YELLOW"), wxT("BLACK"), wxPoint(280,310));
                 switch(m_frame->m_pressTend.GetPressureTendency())
                 {
                     case PressureTendency::RAPIDLY_RISING:
                         DrawText(wxString::Format("Rapidly Rising"), wxT("RED"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::QUICKLY_RISING:
                         DrawText(wxString::Format("Quickly Rising"), wxT("RED"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::RISING:
                         DrawText(wxString::Format("Rising"), wxT("YELLOW"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::SLOWLY_RISING:
                         DrawText(wxString::Format("Slowly Rising"), wxT("GREEN"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::STEADY:
                         DrawText(wxString::Format("Steady"), wxT("GREEN"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::SLOWLY_FALLING:
                         DrawText(wxString::Format("Slowly Falling"), wxT("GREEN"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::FALLING:
                         DrawText(wxString::Format("Falling"), wxT("YELLOW"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::QUICKLY_FALLING:
                         DrawText(wxString::Format("Quickly Falling"), wxT("GREEN"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::RAPIDLY_FALLING:
                         DrawText(wxString::Format("Rapidly Falling"), wxT("RED"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::ARRAY_ERROR:
                     default:
                         DrawText(wxString::Format("Thinking"), wxT("YELLOW"), 
-                                                    wxT("BLACK"), wxPoint(390,320));
+                                                    wxT("BLACK"), wxPoint(280,335));
                         break;
                 }
             }
@@ -2538,11 +2538,11 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         od->str(od, linebuf, 128, unit, -1, 0),
                                         owwl_unit_name(od, unit, 0),
                                         rain_time.FormatTime()),
-                            wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 360));
+                            wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 370));
                 DrawText( wxString::Format("(%s %s)", 
                                         od->str(od, linebuf, 128, unit, -1, 2),
                                         owwl_unit_name(od, unit, 2)),
-                            wxT("YELLOW"), wxT("BLACK"), wxPoint(325, 360));
+                            wxT("YELLOW"), wxT("BLACK"), wxPoint(325, 370));
             }
             else
             {
