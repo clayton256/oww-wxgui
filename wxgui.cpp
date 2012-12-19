@@ -51,6 +51,7 @@
 #include <wx/bookctrl.h>
 #include <wx/cmdline.h>
 #include <wx/stdpaths.h>
+#include <wx/datetime.h>
 
 // system includes
 #ifndef __WXMSW__
@@ -77,6 +78,7 @@
 #define sock_close _close
 #define IOCTL(s,c,a) ioctlsocket(s,c,a)
 #endif
+#include <complex>
 
 // app include
 #include "wxgui.h"
@@ -90,22 +92,6 @@ extern "C" {
 
 #include "owwl.h"
 
-#if 0
-/* Call a function for each data entry */
-/* The function should return non-zero to break out of the loop */
-int
-owwl_foreach_jmc(owwl_conn *conn, owwl_func func, void *user_data)
-{
-    int i ;
-
-    for (i=0; i<conn->data_count; ++i)
-    {
-        if (func(conn, &(conn->data[i]), user_data)) return -1 ;
-    }
-
-    return 0 ; /* Ok */
-}
-#endif
 
 #ifdef __cplusplus
 } /*extern "C"*/
@@ -128,7 +114,7 @@ enum
 wxString g_VersionStr = VERSIONSTR;
 owwl_conn *g_connection;
 
-wxLogWindow *     m_logWindow;
+wxLogWindow * m_logWindow;
 
 #ifndef wxHAS_IMAGES_IN_RESOURCES
     #include "pixmaps/oww_xpm.xpm"
@@ -139,6 +125,153 @@ wxLogWindow *     m_logWindow;
 // ============================================================================
 // declarations
 // ============================================================================
+class MyBaroPressure
+{
+public:
+    MyBaroPressure(double reading, time_t time_stamp)
+    {
+        m_pressureReading = reading;
+        m_timeStamp = time_stamp;
+    };
+    double GetReading() { return m_pressureReading; };
+    time_t GetTimeStamp() { return m_timeStamp; };
+
+private:
+    double m_pressureReading;
+    time_t m_timeStamp;
+};
+
+WX_DECLARE_OBJARRAY(MyBaroPressure, ArrayOfPressReadings);
+
+class PressureTendency
+{
+public:
+    PressureTendency() { press_trend = ARRAY_ERROR; };
+
+    enum pressTendValues
+    {
+        RAPIDLY_RISING  =  4,
+        QUICKLY_RISING  =  3,
+        RISING          =  2,
+        SLOWLY_RISING   =  1,
+        STEADY          =  0,
+        SLOWLY_FALLING  = -1,
+        FALLING         = -2,
+        QUICKLY_FALLING = -3,
+        RAPIDLY_FALLING = -4,
+        ARRAY_ERROR     = -99
+    };
+
+    int GetPressureTendency(void);
+    void inHg2PressTend(owwl_conn* connection);
+
+private:
+    ArrayOfPressReadings m_baroReadings;
+
+    int barometric_change(double past_reading, double current_reading);
+    int press_trend;
+
+};
+
+/*                                 hPa          inHg          mmHg
+ * Steady:                    Less than 0.1     0.003         0.08
+ * Slowly rising or falling     0.15 to 1.5  0.003 to 0.04  0.08 to 1.1
+ * Rising or falling             1.6 to 3.5   0.05 to 0.1   1.2 to 2.6
+ * Quickly rising or falling     3.6 to 6.0   0.1 to 0.18   2.7 to 4.5
+ * Rapidly rising or falling  More than 6.0      0.18          4.5
+ * (hPa == millibar)
+ * To convert inHg to millibars, multiply the inches value by 33.8637526
+ * To convert millibars to inHg, multiply the millibar value by 0.0295301
+ */
+int PressureTendency::barometric_change(double past_reading, double current_reading)
+{
+    int direction, pressure_tendency;
+    double diff = past_reading - current_reading;
+    if(0 > diff)
+    {
+        direction = -1; /*falling*/
+    }
+    else
+    {
+        direction = 1; /* rising */
+    }
+    diff = std::abs(diff);
+    if(0.08 >= diff)
+    {
+        pressure_tendency = 0; /* steady */
+    }
+    else if(1.1 >= diff)
+    {
+        pressure_tendency = 1; /* slightly */
+    }else if(2.6 >= diff)
+    {
+        pressure_tendency = 2; /* moderately */
+    }
+    else if(4.5 >= diff)
+    {
+        pressure_tendency = 3; /* quickly */
+    }
+    else
+    {
+        pressure_tendency = 4; /* rapidly */
+    }
+
+    return pressure_tendency * direction;
+};
+
+
+// Now that we have MyDirectory declaration in scope we may finish the
+// definition of ArrayOfDirectories -- note that this expands into some C++
+// code and so should only be compiled once (i.e., don't put this in the
+// header, but into a source file or you will get linking errors)
+#include <wx/arrimpl.cpp> // This is a magic incantation which must be done!
+WX_DEFINE_OBJARRAY(ArrayOfPressReadings);
+
+/*
+*/
+
+void PressureTendency::inHg2PressTend(owwl_conn* connection)
+{
+    owwl_data* od = owwl_find(connection, OwwlDev_Barometer, 0, 0);
+    if(NULL != od)
+    {
+        MyBaroPressure baroReading(od->val(od, OwwlUnit_Imperial, 0),
+                                                        connection->data_time);
+        m_baroReadings.Add(baroReading);
+        wxLogVerbose(wxString::Format(wxT("baroReading %lf"),
+                                                    baroReading.GetReading()));
+        if(m_baroReadings.GetCount() >=2)
+        {
+            wxDateTime oldest(m_baroReadings[0].GetTimeStamp());
+            wxDateTime newest(m_baroReadings.Last().GetTimeStamp());
+            wxTimeSpan timeSpan = newest - oldest;
+            if(timeSpan.GetHours() >= 3)
+            {
+                press_trend = barometric_change(m_baroReadings[0].GetReading(), 
+                                                m_baroReadings.Last().GetReading());
+                m_baroReadings.RemoveAt(0);
+                wxLogVerbose(wxString::Format(wxT("press_trend %d"), press_trend));
+            }
+            else
+            {
+                wxLogVerbose(wxString::Format(wxT("need moe time %d"), 
+                                                        (int)timeSpan.GetHours()));
+            }
+        }
+        else
+        {
+//            wxLogVerbose(wxString::Format(wxT("baroReadings count %d"), 
+//                                                        m_baroReadings.GetCount()));
+        }
+    }
+    return;
+}
+
+
+int PressureTendency::GetPressureTendency(void)
+{
+    return press_trend;
+}
 
 #if 1
 // Custom application traits class which we use to override the default log
@@ -176,7 +309,7 @@ private:
                                         int style)
     {
         wxMessageDialog dlg(NULL, message, title,
-                            wxOK | wxCANCEL | wxCANCEL_DEFAULT | style);
+                            wxOK|wxCANCEL|wxCANCEL_DEFAULT|style);
         dlg.SetOKCancelLabels(wxID_COPY, wxID_OK);
         dlg.SetExtendedMessage("Note that this is a custom log dialog.");
         dlg.ShowModal();
@@ -515,6 +648,8 @@ public:
     int            m_browser;
     bool           m_restoreAuxFrame;
     int            m_fontSz;
+    PressureTendency  m_pressTend;
+
 private:
     enum
     {
@@ -1786,6 +1921,8 @@ void OwwlReaderTimer::Notify()
         owwl_conn *connection = m_frame->GetOwwlConnection();
         if(NULL != connection)
         {
+            m_frame->m_pressTend.inHg2PressTend(m_frame->m_connection);
+
             //wxLogVerbose("interval=%d:", m_frame->m_connection->interval);
             m_frame->SetLatLongStatus();
             m_frame->SetTitleBar();
@@ -2261,9 +2398,11 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         owwl_unit_name(od, unit, 0)), 
                         wxPoint(365, 60));
 #else
+                //wxString bearingStr = szBearingStr[bearing];
                 DrawText( wxString::Format("%s %s", 
-                                        od->str(od, linebuf, 128, unit, -1, 2),
-                                        owwl_unit_name(od, unit, 2)), 
+                                    od->str(od, linebuf, 128, 
+                                                    OwwlUnit_Alt1/*unit*/, -1, 2),
+                                    owwl_unit_name(od, OwwlUnit_Mm/*unit*/, 2)),
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 60));
 #endif
             }
@@ -2339,6 +2478,50 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         od->str(od, linebuf, 128, unit, 3, 0),
                                         owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(280,320));
+                switch(m_frame->m_pressTend.GetPressureTendency())
+                {
+                    case PressureTendency::RAPIDLY_RISING:
+                        DrawText(wxString::Format("Rapidly Rising"), wxT("RED"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                    case PressureTendency::QUICKLY_RISING:
+                        DrawText(wxString::Format("Quickly Rising"), wxT("RED"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                    case PressureTendency::RISING:
+                        DrawText(wxString::Format("Rising"), wxT("YELLOW"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                    case PressureTendency::SLOWLY_RISING:
+                        DrawText(wxString::Format("Slowly Rising"), wxT("GREEN"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                    case PressureTendency::STEADY:
+                        DrawText(wxString::Format("Steady"), wxT("GREEN"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                    case PressureTendency::SLOWLY_FALLING:
+                        DrawText(wxString::Format("Slowly Falling"), wxT("GREEN"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                    case PressureTendency::FALLING:
+                        DrawText(wxString::Format("Falling"), wxT("YELLOW"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                    case PressureTendency::QUICKLY_FALLING:
+                        DrawText(wxString::Format("Quickly Falling"), wxT("GREEN"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                    case PressureTendency::RAPIDLY_FALLING:
+                        DrawText(wxString::Format("Rapidly Falling"), wxT("RED"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                    case PressureTendency::ARRAY_ERROR:
+                    default:
+                        DrawText(wxString::Format("Thinking"), wxT("YELLOW"), 
+                                                    wxT("BLACK"), wxPoint(390,320));
+                        break;
+                }
             }
             else
             {
