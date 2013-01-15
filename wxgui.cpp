@@ -185,8 +185,9 @@ private:
  */
 int PressureTendency::barometric_change(double past_reading, double current_reading)
 {
+    int units = OwwlUnit_InchHg;
     int direction, pressure_tendency;
-    double diff = past_reading - current_reading;
+    double diff = current_reading - past_reading;
     if(0 > diff)
     {
         direction = -1; /*falling*/
@@ -196,24 +197,73 @@ int PressureTendency::barometric_change(double past_reading, double current_read
         direction = 1; /* rising */
     }
     diff = std::abs(diff);
-    if(0.08 >= diff)
+    switch(units)
     {
-        pressure_tendency = 0; /* steady */
-    }
-    else if(1.1 >= diff)
-    {
-        pressure_tendency = 1; /* slightly */
-    }else if(2.6 >= diff)
-    {
-        pressure_tendency = 2; /* moderately */
-    }
-    else if(4.5 >= diff)
-    {
-        pressure_tendency = 3; /* quickly */
-    }
-    else
-    {
-        pressure_tendency = 4; /* rapidly */
+        case OwwlUnit_Mbar:
+            if(0.1 >= diff)
+            {
+                pressure_tendency = 0; /* steady */
+            }
+            else if(1.5  >= diff)
+            {
+                pressure_tendency = 1; /* slightly */
+            }else if(3.5 >= diff)
+            {
+                pressure_tendency = 2; /* moderately */
+            }
+            else if(6.0 >= diff)
+            {
+                pressure_tendency = 3; /* quickly */
+            }
+            else
+            {
+                pressure_tendency = 4; /* rapidly */
+            }
+            break;
+        case OwwlUnit_InchHg:
+            if(0.003 >= diff)
+            {
+                pressure_tendency = 0; /* steady */
+            }
+            else if(0.04 >= diff)
+            {
+                pressure_tendency = 1; /* slightly */
+            }else if(0.1 >= diff)
+            {
+                pressure_tendency = 2; /* moderately */
+            }
+            else if(0.18 >= diff)
+            {
+                pressure_tendency = 3; /* quickly */
+            }
+            else
+            {
+                pressure_tendency = 4; /* rapidly */
+            }
+            break;
+        case OwwlUnit_Kpa:
+            if(0.08 >= diff)
+            {
+                pressure_tendency = 0; /* steady */
+            }
+            else if(1.1 >= diff)
+            {
+                pressure_tendency = 1; /* slightly */
+            }else if(2.6 >= diff)
+            {
+                pressure_tendency = 2; /* moderately */
+            }
+            else if(4.5 >= diff)
+            {
+                pressure_tendency = 3; /* quickly */
+            }
+            else
+            {
+                pressure_tendency = 4; /* rapidly */
+            }
+            break;
+        default:
+            break;
     }
 
     return pressure_tendency * direction;
@@ -238,19 +288,20 @@ void PressureTendency::inHg2PressTend(owwl_conn* connection)
         MyBaroPressure baroReading(od->val(od, OwwlUnit_Imperial, 0),
                                                         connection->data_time);
         m_baroReadings.Add(baroReading);
-        wxLogVerbose(wxString::Format(wxT("baroReading %lf"),
-                                                    baroReading.GetReading()));
         if(m_baroReadings.GetCount() >=2)
         {
             wxDateTime oldest(m_baroReadings[0].GetTimeStamp());
             wxDateTime newest(m_baroReadings.Last().GetTimeStamp());
             wxTimeSpan timeSpan = newest - oldest;
+
+            press_trend = barometric_change(m_baroReadings[0].GetReading(), 
+                                                m_baroReadings.Last().GetReading());
+            wxLogVerbose(wxString::Format(wxT("press_trend %d %lf %lf"), press_trend, 
+                   m_baroReadings.Last().GetReading(), m_baroReadings[0].GetReading()));
+            
             if(timeSpan.GetHours() >= 3)
             {
-                press_trend = barometric_change(m_baroReadings[0].GetReading(), 
-                                                m_baroReadings.Last().GetReading());
                 m_baroReadings.RemoveAt(0);
-                wxLogVerbose(wxString::Format(wxT("press_trend %d"), press_trend));
             }
             else
             {
@@ -2399,12 +2450,12 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         owwl_unit_name(od, unit, 0)), 
                         wxPoint(365, 60));
 #else
-                //wxString bearingStr = szBearingStr[bearing];
-                DrawText( wxString::Format("%s %s", 
-                                    od->str(od, linebuf, 128, 
-                                                    OwwlUnit_Alt1/*unit*/, -1, 2),
-                                    owwl_unit_name(od, OwwlUnit_Mm/*unit*/, 2)),
+                DrawText( wxString::Format("%s", 
+                                od->str(od, linebuf, 128, OwwlUnit_Name, -1, 2)),
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 60));
+                DrawText( wxString::Format("(%s)", 
+                                od->str(od, linebuf, 128, OwwlUnit_Point16, -1, 2)),
+                        wxT("YELLOW"), wxT("BLACK"), wxPoint(400, 60));
 #endif
             }
             else
@@ -2476,7 +2527,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             if(NULL != od)
             {
                 DrawText(wxString::Format("BP: %s %s", 
-                                        od->str(od, linebuf, 128, unit, 4, 0),
+                                        od->str(od, linebuf, 128, unit, 5, 0),
                                         owwl_unit_name(od, unit, 0)),
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(280,310));
                 switch(m_frame->m_pressTend.GetPressureTendency())
