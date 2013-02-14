@@ -699,6 +699,7 @@ public:
     int            m_browser;
     bool           m_restoreAuxFrame;
     int            m_fontSz;
+    int            m_windChillAlgor;
     PressureTendency  m_pressTend;
 
 private:
@@ -1209,6 +1210,7 @@ MyFrame::MyFrame()
     m_browser = 0;
     m_mapurl = wxEmptyString;
     m_restoreAuxFrame = false;
+    m_windChillAlgor = 1;
     m_fontSz = 14;
 
 #if 0
@@ -1279,6 +1281,7 @@ MyFrame::MyFrame()
             wxT("http://www.openstreetmap.org/?lat=%f&lon=%f&zoom=15&layers=M"));
     m_config->Read(_T("launchStStart"), &m_launchAtStart);
     m_config->Read(_T("animateDisplay"), &m_animateDisplay);
+    m_windChillAlgor = m_config->Read(_T("windchillalgorithm"), m_windChillAlgor);
     m_fontSz = m_config->Read(_T("fontSz"), m_fontSz);
 
     wxMenuBar *menu_bar = new wxMenuBar();
@@ -1683,6 +1686,7 @@ void MyFrame::OnPropertySheet(wxCommandEvent& WXUNUSED(event))
             m_config->Write(_T("restoreAuxFrame"), m_restoreAuxFrame);
             m_config->Write(_T("browser"), m_browser);
             m_config->Write(_T("mapurl"), m_mapurl);
+            m_config->Write(_T("windchillalgorithm"), m_windChillAlgor);
             break;
         default:
             wxASSERT(true);
@@ -2476,6 +2480,56 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             {
                 wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temperature == NULL");
             }
+
+/* The equivalent formula in US customary units is:
+
+   Twc = 35.74 + 0.6215Ta - 35.75V^0.16 + 0.4275TaV^0.16
+
+    where Twc is the wind chill index, based on the Fahrenheit scale,
+    Ta is the air temperature, measured in °F, and V is the wind speed, 
+    in mph. Windchill temperature is defined only for temperatures 
+    at or below 10 °C (50 °F) and wind speeds above 4.8 kilometres 
+    per hour (3.0 mph). As the air temperature falls, the chilling 
+    effect of any wind that is present increases. 
+*/
+            if(true)
+            {
+                float speed = 0.0;
+                float temperature = 0.0;
+                float windchill = 0.0;
+
+                od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
+                if(NULL != od)
+                {
+                    speed = od->val(od, OwwlUnit_Imperial, 0);
+                }
+
+                od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
+                                                    OwwlTemp_Thermometer, 0);
+                if(NULL != od)
+                {
+                    temperature = od->val(od, OwwlUnit_Imperial, 0);
+                }
+
+                if(50.0 > temperature && 3.0 < speed)
+                {
+                    switch(m_frame->m_windChillAlgor)
+                    {
+                        case 1:
+                            speed = pow(speed, 0.16); 
+                            windchill = 35.74 + (0.6215 * temperature)
+                                        - (35.75 * speed)
+                                        + (0.4275 * temperature * speed);
+                            break;
+                        default:
+                                break;
+                    }
+                    DrawText( wxString::Format("WC:%2.1f%s", windchill,
+                                        owwl_unit_name(od, OwwlUnit_Imperial, 0)), 
+                            wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 185));
+                }
+            }
+
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Humidity, 0, 0);
             if(NULL != od)
