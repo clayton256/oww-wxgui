@@ -1213,30 +1213,6 @@ MyFrame::MyFrame()
     m_windChillAlgor = 1;
     m_fontSz = 14;
 
-#if 0
-    //wxApp::GetAppDir().GetPath())
-    wxFile logFile;
-    wxLog * logTarget;
-    wxFileName logPath = wxFileName(wxT("UpdaterLog.txt"));
-    if(logPath.Normalize(wxPATH_NORM_ALL, wxT("./")))
-    {
-        // create log
-        logFile.Open(logPath.GetFullPath(), wxT("w"));
-        logTarget = new wxLogStderr(logFile.fp()); 
-        logTargetOld = wxLog::GetActiveTarget();
-        logTarget->SetVerbose(TRUE); 
-        wxLog::SetActiveTarget(logTarget); 
-    }
-#endif
-#if 1
-    m_logWindow = new wxLogWindow(this, wxT("Log"));
-    wxFrame *pLogFrame = m_logWindow->GetFrame();
-    pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE);
-    pLogFrame->SetSize(wxRect(0,50,500,200));
-    m_logWindow->SetVerbose(true);
-    wxLog::SetActiveTarget(m_logWindow);
-    m_logWindow->Show();
-#endif
     wxLogVerbose(wxString::Format(wxT("Welcome to %s"), wxT("oww-wxgui")));
 
 #ifdef __WXMSW__
@@ -1860,6 +1836,22 @@ bool MyApp::OnInit()
     if ( !wxApp::OnInit() )
         return false;
 
+#if WXOWW_LOGWINDOW
+    m_logWindow = new wxLogWindow(NULL, wxT("Log"));
+    wxFrame *pLogFrame = m_logWindow->GetFrame();
+    pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE);
+    pLogFrame->SetSize(wxRect(0,50,500,200));
+    m_logWindow->SetVerbose(true);
+    wxLog::SetActiveTarget(m_logWindow);
+    m_logWindow->Show();
+#else
+    wxLog::SetVerbose();
+    FILE *logFile;
+    logFile = fopen("/Users/mark/Projects/oww-wxgui/oww-wxgui.log","w");
+    wxLogStderr *mStandardLog = new wxLogStderr(logFile);
+    wxLog::SetActiveTarget(mStandardLog);
+#endif
+
     wxInitAllImageHandlers();
 
     wxFrame *frame = new MyFrame();
@@ -1874,11 +1866,15 @@ bool MyApp::OnInit()
 
 int MyApp::OnExit()
 {
-  // clean up: Set() returns the active config object as Get() does, but unlike
-  // Get() it doesn't try to create one if there is none (definitely not what
-  // we want here!)
-  delete wxConfigBase::Set((wxConfigBase *) NULL);
-  return 0;
+#if WXOWW_LOGWINDOW
+    delete m_logWindow;
+#endif
+
+    // clean up: Set() returns the active config object as Get() does, but unlike
+    // Get() it doesn't try to create one if there is none (definitely not what
+    // we want here!)
+    delete wxConfigBase::Set((wxConfigBase *) NULL);
+    return 0;
 }
 
 
