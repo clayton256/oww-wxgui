@@ -2524,9 +2524,9 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                         default:
                                 break;
                     }
-                    DrawText( wxString::Format("WC:%2.1f%s", windchill,
+                    DrawText( wxString::Format("wc:%2.1f%s", windchill,
                                         owwl_unit_name(od, OwwlUnit_Imperial, 0)), 
-                            wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 185));
+                            wxT("RED"), wxT("BLACK"), wxPoint(25, 185));
                 }
             }
 
