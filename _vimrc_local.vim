@@ -9,5 +9,13 @@ elseif has('unix')
   set makeprg=make\ -f\ makefile.unx
 endif
 
+"-------------------------------------------------------------------------------
+" Load syntax enhancements for wxWindows, if installed
+"-------------------------------------------------------------------------------
+" if filereadable("syntax/wxwin.vim")
+  runtime syntax/wxwin.vim
+" endif
+
+
 
 
