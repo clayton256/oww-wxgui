@@ -2497,7 +2497,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
                 if(NULL != od)
                 {
-                    od->val(od, OwwlUnit_Imperial, 0);
+                    speed = od->val(od, OwwlUnit_Imperial, 0);
                 }
 
                 od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
