@@ -2488,7 +2488,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
     per hour (3.0 mph). As the air temperature falls, the chilling 
     effect of any wind that is present increases. 
 */
-            if(true)
+            if(m_frame->m_windChillAlgor)
             {
                 float speed = 0.0;
                 float temperature = 0.0;
@@ -2497,7 +2497,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
                 if(NULL != od)
                 {
-                    speed = od->val(od, OwwlUnit_Imperial, 0);
+                    od->val(od, OwwlUnit_Imperial, 0);
                 }
 
                 od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
@@ -2520,9 +2520,12 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                         default:
                                 break;
                     }
-                    DrawText( wxString::Format("wc:%2.1f%s", windchill,
+                    if(NULL != od)
+                    {
+                        DrawText( wxString::Format("wc:%2.1f%s", windchill,
                                         owwl_unit_name(od, OwwlUnit_Imperial, 0)), 
                             wxT("RED"), wxT("BLACK"), wxPoint(25, 185));
+                    }
                 }
             }
 
