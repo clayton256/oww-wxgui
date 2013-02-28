@@ -2264,7 +2264,7 @@ void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
 void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 {
     wxPaintDC dc( this );
-    PrepareDC( dc );
+    //PrepareDC( dc );
     //shadowDC = new wxShadowDC(this);
     //shadowDC->SetTextShadowColour(wxT("BLACK"));
     owwl_data *od = NULL;
