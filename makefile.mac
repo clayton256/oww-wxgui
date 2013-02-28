@@ -14,7 +14,7 @@ imageresources=body.jpg bottom3.jpg bottom6.jpg top2.jpg bottom1.jpg bottom4.jpg
 
 #http://iconverticons.com
 pixmaps/oww.icns: pixmaps/oww.png
-	sips -s format icns pixmaps/oww.png --out pixmaps/oww.icn
+	sips -s format icns pixmaps/oww.png --out pixmaps/oww.icns
 
 owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
 	$(WXWIDGETSBUILD)/bk-deps gcc -mmacosx-version-min=10.5 -c -o owwl.o -DNOGUI -DHAVE_GETTIMEOFDAY=1 -Wall -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src -g -O0 -fno-common $(OWWLBASE)/src/owwl.c
