@@ -540,7 +540,7 @@ public:
 
     void OnPaint( wxPaintEvent &event );
     void CreateAntiAliasedBitmap();
-    void DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt );
+    void DrawText(wxPaintDC * d, wxString str, wxColor fore, wxColor shadow, wxPoint pt );
 
     wxBitmap  body_jpg;
     wxBitmap  bottom1_jpg;
@@ -2241,20 +2241,16 @@ MyCanvas::~MyCanvas()
     }
 } //MyCanvas d-tor
 
-void MyCanvas::DrawText(wxString str, wxColor fore, wxColor shadow, wxPoint pt)
+void MyCanvas::DrawText(wxPaintDC * d, wxString str, wxColor fore, wxColor shadow, wxPoint pt)
 {
-    wxPaintDC dc( this );
-    //DoPrepareDC(dc);
-    PrepareDC( dc );
-
     wxFont f = wxFont(m_frame->m_fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
                                                         wxFONTWEIGHT_BOLD);
-    wxColor fc = dc.GetTextForeground();
-    dc.SetFont(f);
-    dc.SetTextForeground( shadow );
-    dc.DrawText( str, pt.x+2, pt.y+2);
-    dc.SetTextForeground( fore );
-    dc.DrawText( str, pt.x, pt.y);
+    wxColor fc = d->GetTextForeground();
+    d->SetFont(f);
+    d->SetTextForeground( shadow );
+    d->DrawText( str, pt.x+2, pt.y+2);
+    d->SetTextForeground( fore );
+    d->DrawText( str, pt.x, pt.y);
 
     return;
 } //MyCanvas::DrawShadowText
@@ -2434,12 +2430,12 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 }
 
                 // Draw Wind Speed on canvas
-                DrawText( wxString::Format("%s %s",
+                DrawText(&dc, wxString::Format("%s %s",
                                         od->str(od, linebuf, 128, unit, -1, 0),
                                         owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 20));
                 // Draw Wind Gust Speed on canvas
-                DrawText( wxString::Format("%s %s",
+                DrawText(&dc, wxString::Format("%s %s",
                                         od->str(od, linebuf, 128, unit, -1, 1),
                                         owwl_unit_name(od, unit, 1)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 40));
@@ -2450,10 +2446,10 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                         owwl_unit_name(od, unit, 0)), 
                         wxPoint(365, 60));
 #else
-                DrawText( wxString::Format("%s", 
+                DrawText(&dc, wxString::Format("%s", 
                                 od->str(od, linebuf, 128, OwwlUnit_Name, -1, 2)),
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 60));
-                DrawText( wxString::Format("(%s)", 
+                DrawText(&dc, wxString::Format("(%s)", 
                                 od->str(od, linebuf, 128, OwwlUnit_Point16, -1, 2)),
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(400, 60));
 #endif
@@ -2467,7 +2463,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                                     OwwlTemp_Thermometer, 0);
             if(NULL != od)
             {
-                DrawText( wxString::Format("%s%s", 
+                DrawText(&dc, wxString::Format("%s%s", 
                                     od->str(od, linebuf, 128, unit, -1, 0),
                                     owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 125));
@@ -2522,7 +2518,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                     }
                     if(NULL != od)
                     {
-                        DrawText( wxString::Format("wc:%2.1f%s", windchill,
+                        DrawText(&dc, wxString::Format("wc:%2.1f%s", windchill,
                                         owwl_unit_name(od, OwwlUnit_Imperial, 0)), 
                             wxT("RED"), wxT("BLACK"), wxPoint(25, 185));
                     }
@@ -2537,7 +2533,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 {
                     dc.DrawBitmap( rh_png, 300, 180 );
                 }
-                DrawText( wxString::Format("rh: %s%s", 
+                DrawText(&dc, wxString::Format("rh: %s%s", 
                                         od->str(od, linebuf, 128, unit, -1, 0),
                                         owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(280, 235));
@@ -2552,7 +2548,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                                             OwwlTemp_Humidity, 0);
             if(NULL != od)
             {
-                DrawText( wxString::Format("Trh: %s %s", 
+                DrawText(&dc, wxString::Format("Trh: %s %s", 
                             od->str(od, linebuf, 128, unit, -1, 0),
                             owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(280, 260));
@@ -2566,7 +2562,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                                             OwwlTemp_Barometer, 0);
             if(NULL != od)
             {
-                DrawText( wxString::Format("Tb: %s %s", 
+                DrawText(&dc, wxString::Format("Tb: %s %s", 
                             od->str(od, linebuf, 128, unit, -1, 0),
                             owwl_unit_name(od, unit, 0)), 
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(280, 285));
@@ -2579,51 +2575,51 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
             if(NULL != od)
             {
-                DrawText(wxString::Format("BP: %s %s", 
+                DrawText(&dc, wxString::Format("BP: %s %s", 
                                         od->str(od, linebuf, 128, unit, 5, 0),
                                         owwl_unit_name(od, unit, 0)),
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(280,310));
                 switch(m_frame->m_pressTend.GetPressureTendency())
                 {
                     case PressureTendency::RAPIDLY_RISING:
-                        DrawText(wxString::Format("Rapidly Rising"), wxT("RED"),
+                        DrawText(&dc, wxString::Format("Rapidly Rising"), wxT("RED"),
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::QUICKLY_RISING:
-                        DrawText(wxString::Format("Quickly Rising"), wxT("RED"),
+                        DrawText(&dc, wxString::Format("Quickly Rising"), wxT("RED"),
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::RISING:
-                        DrawText(wxString::Format("Rising"), wxT("YELLOW"),
+                        DrawText(&dc, wxString::Format("Rising"), wxT("YELLOW"),
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::SLOWLY_RISING:
-                        DrawText(wxString::Format("Slowly Rising"), wxT("GREEN"),
+                        DrawText(&dc, wxString::Format("Slowly Rising"), wxT("GREEN"),
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::STEADY:
-                        DrawText(wxString::Format("Steady"), wxT("GREEN"),
+                        DrawText(&dc, wxString::Format("Steady"), wxT("GREEN"),
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::SLOWLY_FALLING:
-                        DrawText(wxString::Format("Slowly Falling"), wxT("GREEN"),
+                        DrawText(&dc, wxString::Format("Slowly Falling"), wxT("GREEN"),
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::FALLING:
-                        DrawText(wxString::Format("Falling"), wxT("YELLOW"), 
+                        DrawText(&dc, wxString::Format("Falling"), wxT("YELLOW"), 
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::QUICKLY_FALLING:
-                        DrawText(wxString::Format("Quickly Falling"), wxT("GREEN"),
+                        DrawText(&dc, wxString::Format("Quickly Falling"), wxT("GREEN"),
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::RAPIDLY_FALLING:
-                        DrawText(wxString::Format("Rapidly Falling"), wxT("RED"),
+                        DrawText(&dc, wxString::Format("Rapidly Falling"), wxT("RED"),
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                     case PressureTendency::ARRAY_ERROR:
                     default:
-                        DrawText(wxString::Format("------n/a------"), wxT("YELLOW"),
+                        DrawText(&dc, wxString::Format("------n/a------"), wxT("YELLOW"),
                                                     wxT("BLACK"), wxPoint(280,335));
                         break;
                 }
@@ -2639,12 +2635,12 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             {
                 wxDateTime rain_time = wxDateTime(
                                         od->device_data.rain.rain_reset_time);
-                DrawText( wxString::Format("Rain: %s %s since %s", 
+                DrawText(&dc,  wxString::Format("Rain: %s %s since %s", 
                                         od->str(od, linebuf, 128, unit, -1, 0),
                                         owwl_unit_name(od, unit, 0),
                                         rain_time.FormatTime()),
                             wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 370));
-                DrawText( wxString::Format("(%s %s)", 
+                DrawText(&dc,  wxString::Format("(%s %s)", 
                                         od->str(od, linebuf, 128, unit, -1, 2),
                                         owwl_unit_name(od, unit, 2)),
                             wxT("YELLOW"), wxT("BLACK"), wxPoint(325, 370));
