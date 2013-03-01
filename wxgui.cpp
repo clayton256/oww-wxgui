@@ -1847,7 +1847,8 @@ bool MyApp::OnInit()
 #else
     wxLog::SetVerbose();
     FILE *logFile;
-    logFile = fopen("/Users/mark/Projects/oww-wxgui/oww-wxgui.log","w");
+    logFile = fopen("/Users/clayton/oww-wxgui.log","w");
+    //logFile = fopen("/Users/mark/Projects/oww-wxgui/oww-wxgui.log","w");
     wxLogStderr *mStandardLog = new wxLogStderr(logFile);
     wxLog::SetActiveTarget(mStandardLog);
 #endif
