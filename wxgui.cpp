@@ -2245,7 +2245,7 @@ MyCanvas::~MyCanvas()
 void MyCanvas::DrawText(wxPaintDC * d, wxString str, wxColor fore, wxColor shadow, wxPoint pt)
 {
     wxFont f = wxFont(m_frame->m_fontSz, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, 
-                                                        wxFONTWEIGHT_BOLD);
+                                                        wxFONTWEIGHT_NORMAL);
     wxColor fc = d->GetTextForeground();
     d->SetFont(f);
     d->SetTextForeground( shadow );
@@ -2636,15 +2636,13 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             {
                 wxDateTime rain_time = wxDateTime(
                                         od->device_data.rain.rain_reset_time);
-                DrawText(&dc,  wxString::Format("Rain: %s %s since %s", 
+                DrawText(&dc, wxString::Format("Rain: %s %s since %s (%s %s)", 
                                         od->str(od, linebuf, 128, unit, -1, 0),
                                         owwl_unit_name(od, unit, 0),
-                                        rain_time.FormatTime()),
-                            wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 370));
-                DrawText(&dc,  wxString::Format("(%s %s)", 
+                                        rain_time.FormatTime(),
                                         od->str(od, linebuf, 128, unit, -1, 2),
                                         owwl_unit_name(od, unit, 2)),
-                            wxT("YELLOW"), wxT("BLACK"), wxPoint(325, 370));
+                            wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 370));
             }
             else
             {
