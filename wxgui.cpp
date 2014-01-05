@@ -82,6 +82,7 @@
 
 // app include
 #include "wxgui.h"
+#include "heatindex.h"
 
 class MyFrame;
 
@@ -1556,6 +1557,7 @@ private:
     wxGrid *m_grid;
     void OnPaint(wxPaintEvent& WXUNUSED(event))
     {
+#if 0
         wxPaintDC dc(this);
         wxScopedPtr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
 
@@ -1565,6 +1567,7 @@ private:
         wxGraphicsFont gf = gc->CreateFont(wxNORMAL_FONT->GetPixelSize().y, "");
         gc->SetFont(gf);
         gc->DrawText("More Text", 0, (3*90)/2);
+#endif
     }
 
     wxDECLARE_NO_COPY_CLASS(MyDevicesFrame);
@@ -1587,6 +1590,9 @@ void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 
 void MyFrame::OnMessages( wxCommandEvent &WXUNUSED(event) )
 {
+    bool verb = !m_logWindow->GetVerbose();
+    wxLogVerbose(wxT("SetVerbose=%d"), verb);
+    m_logWindow->SetVerbose(verb);
     //m_logWindow->Show();
 } //MyFrame::OnMessages
 
@@ -1845,7 +1851,7 @@ bool MyApp::OnInit()
     wxLog::SetActiveTarget(m_logWindow);
     m_logWindow->Show();
 #else
-    wxLog::SetVerbose();
+    wxLog::SetVerbose(false);
     FILE *logFile;
     logFile = fopen("/Users/clayton/oww-wxgui.log","w");
     //logFile = fopen("/Users/mark/Projects/oww-wxgui/oww-wxgui.log","w");
@@ -2207,7 +2213,7 @@ SetInstallPrefix()
             wxLogVerbose(_T("Can't load JPG image"));
         else
             top3_jpg = wxBitmap( image );
-
+#if 0
         if (top1_jpg.IsOk())
         {
              dc.DrawBitmap( top1_jpg, 0, 0 );
@@ -2223,6 +2229,7 @@ SetInstallPrefix()
             dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
                                                 + body_jpg.GetHeight());
         }
+#endif
      }
     else
     {
@@ -2257,11 +2264,10 @@ void MyCanvas::DrawText(wxPaintDC * d, wxString str, wxColor fore, wxColor shado
 } //MyCanvas::DrawShadowText
 
 
-
 void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 {
+    wxLogVerbose(_T("start MyCanvas::OnPaint"));
     wxPaintDC dc( this );
-    //PrepareDC( dc );
     //shadowDC = new wxShadowDC(this);
     //shadowDC->SetTextShadowColour(wxT("BLACK"));
     owwl_data *od = NULL;
@@ -2298,7 +2304,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
         if(m_frame->m_connection)
         {
             float speed = 0.0;
-            float bearing = 0.0;
+            int bearing = 0;
             char linebuf[128];
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Wind, 0, 0);
@@ -2310,7 +2316,8 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                     unit = unit_choices[unit_class];
                 }
                 speed =   od->val(od, unit, 0);
-                bearing = od->val(od, unit, 2);
+                bearing = od->val(od, OwwlUnit_Point16, 2);
+                //wxLogVerbose(wxString::Format(wxT("bearing %lf"), bearing ));
                 
                 static int inc_top = 0;
                 if(speed >= 0.0 && speed <= 1.0)
@@ -2383,7 +2390,9 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 if (body_jpg.IsOk())
                     dc.DrawBitmap( body_jpg, 0, top1_jpg.GetHeight());
 
-                switch( lround(bearing/22.5) )
+                //int ordinal = lround(bearing/22.5);
+                //wxLogVerbose(wxString::Format(wxT("ordinal %lf"), ordinal ));
+                switch( bearing )
                 {
                     case 1:
                     case 2:
@@ -2526,7 +2535,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 }
             }
 
-
             od = owwl_find(m_frame->m_connection, OwwlDev_Humidity, 0, 0);
             if(NULL != od)
             {
@@ -2542,6 +2550,33 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             else
             {
                 wxLogVerbose("MyCanvas::OnPaint od OwwDev_Humidity == NULL");
+            }
+            if(1)
+            {
+				float heatindex = 0.0;
+                float relativehumidity = 0.0;
+                float temperature = 0.0;
+
+                od = owwl_find(m_frame->m_connection, OwwlDev_Humidity, 0, 0);
+                if(NULL != od)
+                {
+                    relativehumidity = od->val(od, OwwlUnit_Imperial, 0);
+                }
+
+                od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
+                                                    OwwlTemp_Thermometer, 0);
+                if(NULL != od)
+                {
+                    temperature = od->val(od, OwwlUnit_Imperial, 0);
+                }
+
+				heatindex = heat_index(temperature, relativehumidity);
+				if(temperature < heatindex)
+                {
+                    DrawText(&dc, wxString::Format("hi:%2.1fF %s", heatindex,
+										heat_index_str(heat_index_level(heatindex))),
+                            wxT("RED"), wxT("BLACK"), wxPoint(25, 185));
+                }
             }
 
             dc.SetTextForeground( wxT("YELLOW") );
@@ -2662,44 +2697,43 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             wxLogVerbose("MyCanvas::OnPaint m_conn==NULL");
         }// if(m_connection)
 
-    }// if(m_frame)
-
-
 #if 0
-    wxScopedPtr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
-    wxGraphicsFont gf = gc->CreateFont(wxNORMAL_FONT->GetPixelSize().y, wxT("WHITE") );
+        wxScopedPtr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
+        wxGraphicsFont gf = gc->CreateFont(wxNORMAL_FONT->GetPixelSize().y, wxT("WHITE"));
 
-    gc->SetFont(gf);
-    //dc.SetTextForeground( wxT("WHITE") );
-    wxString now = wxNow ();
-    gc->DrawText (now, 100, 10);
-    gc->DrawText( wxString::Format("%2.1f C", t), 30, 130 );
+        gc->SetFont(gf);
+        //dc.SetTextForeground( wxT("WHITE") );
+        wxString now = wxNow ();
+        gc->DrawText (now, 100, 10);
+        gc->DrawText( wxString::Format("%2.1f C", t), 30, 130 );
 
-    gc->DrawText( wxString::Format("%2.1f m/s", s), 365, 20 );
-    gc->DrawText( wxString::Format("%2.1f gusts", g), 365, 40 );
-    gc->DrawText( wxString::Format("%2.1f bearing", b), 365, 60 );
+        gc->DrawText( wxString::Format("%2.1f m/s", s), 365, 20 );
+        gc->DrawText( wxString::Format("%2.1f gusts", g), 365, 40 );
+        gc->DrawText( wxString::Format("%2.1f bearing", b), 365, 60 );
 
-    dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
-    dc.SetPen( *wxBLACK_PEN );
-    dc.DrawCircle( 350, 100, 30);
+        dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
+        dc.SetPen( *wxBLACK_PEN );
+        dc.DrawCircle( 350, 100, 30);
 
-    if (gc)
-    {
-        // make a path that contains a circle and some lines
-        gc->SetPen( *wxRED_PEN );
-        wxGraphicsPath path = gc->CreatePath();
-        path.AddCircle( 50.0, 50.0, 50.0 );
-        path.MoveToPoint(0.0, 50.0);
-        path.AddLineToPoint(100.0, 50.0);
-        path.MoveToPoint(50.0, 0.0);
-        path.AddLineToPoint(50.0, 100.0 );
-        path.CloseSubpath();
-        //path.AddRectangle(25.0, 25.0, 50.0, 50.0);
-        path.AddRoundedRectangle(25.0, 25.0, 50.0, 50.0, 10.3);
-        gc->StrokePath(path);
+        if (gc)
+        {
+            // make a path that contains a circle and some lines
+            gc->SetPen( *wxRED_PEN );
+            wxGraphicsPath path = gc->CreatePath();
+            path.AddCircle( 50.0, 50.0, 50.0 );
+            path.MoveToPoint(0.0, 50.0);
+            path.AddLineToPoint(100.0, 50.0);
+            path.MoveToPoint(50.0, 0.0);
+            path.AddLineToPoint(50.0, 100.0 );
+            path.CloseSubpath();
+            //path.AddRectangle(25.0, 25.0, 50.0, 50.0);
+            path.AddRoundedRectangle(25.0, 25.0, 50.0, 50.0, 10.3);
+            gc->StrokePath(path);
 
-        //delete gc;
-    }
+            //delete gc;
+        }
 #endif
+    }// if(m_frame)
+    wxLogVerbose(_T("end MyCanvas::OnPaint"));
 } //MyCanvas::OnPaint
 
