@@ -3,7 +3,7 @@ _VERSIONSTR="0.85.0-1"
 CCDEBUGFLAGS=-DOWWL_DEBUG
 
 OWWLBASE=../owwl
-WXWIDGETSBASE=../wxWidgets-2.9.4
+WXWIDGETSBASE=../../wxWidgets-2.9.4
 WXWIDGETSBUILD=$(WXWIDGETSBASE)/cocoa-release
 EXENAME=Oww
 APPNAME=$(EXENAME).app
@@ -17,16 +17,16 @@ pixmaps/oww.icns: pixmaps/oww.png
 	sips -s format icns pixmaps/oww.png --out pixmaps/oww.icns
 
 owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
-	$(WXWIDGETSBUILD)/bk-deps gcc -mmacosx-version-min=10.5 -c -o owwl.o -DNOGUI -DHAVE_GETTIMEOFDAY=1 -Wall -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src -g -O0 -fno-common $(OWWLBASE)/src/owwl.c
+	$(WXWIDGETSBUILD)/bk-deps gcc -stdlib=libstdc++ -mmacosx-version-min=10.6 -c -o owwl.o -DNOGUI -DHAVE_GETTIMEOFDAY=1 -Wall -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src -g -O0 -fno-common $(OWWLBASE)/src/owwl.c
 
 heatindex.o: heatindex.c heatindex.h
-	$(WXWIDGETSBUILD)/bk-deps gcc -mmacosx-version-min=10.5 -c -o heatindex.o -DNOGUI -Wall -D_FILE_OFFSET_BITS=64 -I./ -g -O0 -fno-common heatindex.c
+	$(WXWIDGETSBUILD)/bk-deps gcc -stdlib=libstdc++ -mmacosx-version-min=10.6 -c -o heatindex.o -DNOGUI -Wall -D_FILE_OFFSET_BITS=64 -I./ -g -O0 -fno-common heatindex.c
 
 wxgui.o: wxgui.cpp wxgui.h pixmaps/oww_xpm.xpm
-	$(WXWIDGETSBUILD)/bk-deps g++ `$(WXWIDGETSBUILD)/wx-config --cxxflags` -c -o wxgui.o -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src -g -O0 -fno-common wxgui.cpp
+	$(WXWIDGETSBUILD)/bk-deps g++ -stdlib=libstdc++ -mmacosx-version-min=10.6 `$(WXWIDGETSBUILD)/wx-config --cxxflags` -c -o wxgui.o -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src -g -O0 -fno-common wxgui.cpp
 
 $(EXENAME): wxgui.o owwl.o heatindex.o
-	g++ -mmacosx-version-min=10.5 -o $(EXENAME) heatindex.o owwl.o wxgui.o `$(WXWIDGETSBUILD)/wx-config --libs`
+	g++ -stdlib=libstdc++ -mmacosx-version-min=10.6 -o $(EXENAME) heatindex.o owwl.o wxgui.o `$(WXWIDGETSBUILD)/wx-config --libs`
 
 $(APPNAME): $(EXENAME) Info.plist.in pixmaps/oww.icns
 	SetFile -t APPL $(EXENAME)
@@ -40,7 +40,18 @@ $(APPNAME): $(EXENAME) Info.plist.in pixmaps/oww.icns
 	/bin/echo "APPL????" >$(APPNAME)/Contents/PkgInfo
 	ln -f $(EXENAME) $(APPNAME)/Contents/MacOS/$(EXENAME)
 	mkdir -p $(APPNAME)/Contents/Resources/pixmaps/
-	\cp -f pixmaps/*.jpg $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/body.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/top1.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/top2.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/top3.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/bottom1.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/bottom2.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/bottom3.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/bottom4.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/bottom5.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/bottom6.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/bottom7.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
+	\cp -f pixmaps/bottom8.jpg	 $(APPNAME)/Contents/Resources/pixmaps/
 	\cp -f pixmaps/rh.png $(APPNAME)/Contents/Resources/pixmaps/
 	\cp -f pixmaps/oww.icns $(APPNAME)/Contents/Resources/oww.icns
 
