@@ -1,3 +1,4 @@
+heatindex
 *.exe
 *.manifest
 *.obj
@@ -12,7 +13,7 @@ project.tgz
 .deps
 oww-wxgui
 Oww
-Oww.app
+Oww*.app
 descrip.mms
 image.cpp
 pixmaps/.DS_Store
@@ -32,3 +33,10 @@ wxoww-wxcanvas.cpp
 wxoww.app.zip
 *.swp
 drift.*
+wxgui.cpp.*
+wxgui.patch
+oww-wxgui.dmg
+oww-wxgui.log
+linux/*
+pixmaps/Oww.*
+
