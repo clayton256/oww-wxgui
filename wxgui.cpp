@@ -1246,7 +1246,7 @@ MyFrame::MyFrame()
 #endif
 
     SetIcon(wxICON(oww));
-
+    wxStandardPaths::Get().SetInstallPrefix("/usr/local");
     m_config = wxConfigBase::Get(_T("oww-wxgui"));
     m_config->Read(_T("server"), &m_hostname, wxT("localhost"));
     m_port = m_config->ReadLong(_T("port"), m_port);
@@ -1851,9 +1851,13 @@ bool MyApp::OnInit()
     wxLog::SetActiveTarget(m_logWindow);
     m_logWindow->Show();
 #else
-    wxLog::SetVerbose(false);
+    wxLog::SetVerbose(true);
     FILE *logFile;
+#if __WXOSX_COCOA__
     logFile = fopen("/Users/clayton/oww-wxgui.log","w");
+#elif __WXGTK__
+    logFile = fopen("./oww-wxgui.log","w");
+#endif
     //logFile = fopen("/Users/mark/Projects/oww-wxgui/oww-wxgui.log","w");
     wxLogStderr *mStandardLog = new wxLogStderr(logFile);
     wxLog::SetActiveTarget(mStandardLog);
@@ -2113,19 +2117,6 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
     PrepareDC( dc );
     m_auxilliaryFrame = NULL;
 
-#if 0
-#ifdef __WXGTK__
-    wxString dir = wxT("/usr/local/share/oww/pixmaps/");
-SetInstallPrefix()
-#elif __WXOSX_COCOA__
-    //wxString dir = "/Library/Application Support/Oww/pixmaps/";
-    //wxString dir = wxGetCwd() + wxT("/pixmaps/");
-#elif __WXMSW__
-    wxString dir = /*wxGetOSDirectory() + */ wxT("\\Program Files\\Oww\\pixmaps\\");
-#else
-#error define your platform
-#endif
-#endif
     // Try to find the images in the platform specific location
     // Unix: <prefix>/share/appname where prefix is "/usr/local"
     //       unless changed by ::SetInstallPrefix()

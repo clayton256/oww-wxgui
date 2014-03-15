@@ -13,12 +13,17 @@
 
 #Uncomment the following line to make a coverity build
 #COVERITY=/home/mark/cov-analysis-linux-6.5.0/bin/cov-build --dir cov-int 
-CC = $(COVERITY) gcc
+#CC = $(COVERITY) gcc
 #CCDEBUGFLAGS=-DOWWL_DEBUG
+
+WXDIR=../../wxWidgets-2.9.4
+WXBUILD=linux-debug
+WXBASE=$(WXDIR)/$(WXBUILD)
+BUILDDIR=linux
 OWWLVERS=
 OWWLBASE=../owwl$(OWWLVERS)
-PROGRAM = oww-wxgui
-OBJECTS = wxgui.o owwl.o 
+PROGRAM = $(BUILDDIR)/oww-wxgui
+OBJECTS = $(BUILDDIR)/wxgui.o $(BUILDDIR)/owwl.o $(BUILDDIR)/heatindex.o
 CPPCHECK=cppcheck
 
 _VERSIONSTR="0.85.0-1"
@@ -33,28 +38,25 @@ cppcheck:
 	$(CPPCHECK) --verbose --enable=all -I../wxWidgets-2.9.4/buildgtk/lib/wx/include/gtk2-unicode-2.9/ -I../wxWidgets-2.9.4/include/ -D__GNUC__ -D__GNUG__ -D_FILE_OFFSET_BITS=64 -DWXUSINGDLL -D__UNIX__ -D__WXGTK__ -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src/ wxgui.cpp
 	$(CPPCHECK) --verbose --enable=all -DNOGUI -DHAVETIMEOFDAY=1 $(CCDEBUGFLAGS) -I../owwl/src/ ../owwl/src/owwl.c
 
-owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
+$(BUILDDIR)/heatindex.o: heatindex.c heatindex.h
+	$(CC) -c -D__WXGUI__ -DNOGUI $(CCDEBUGFLAGS) -I. -g -O0 -o $@ $<
+
+$(BUILDDIR)/owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
 	$(CC) -c -D__WXGUI__ -DNOGUI -DHAVE_GETTIMEOFDAY=1 $(CCDEBUGFLAGS) -I../owwl/src/ -g -O0 -o $@ $<
 
 .c.o :
 	$(CC) -c -D__WXGUI__ -DNOGUI -o $@ $(OWWLBASE)/src/$<
 
-#.cpp.o : wxgui.h
-#	$(CC) -c `wx-config --cflags` -DNOGUI -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src/ -g -O0 -o $@ $<
 
-wxgui.o: wxgui.cpp wxgui.h
-	/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/bk-deps g++ -c -o wxgui.o -D__WXGTK__ -DVERSIONSTR=\"$(_VERSIONSTR)\" -I/home/mark/Projects/wxWidgets-2.9.4/include/ -I. -DWXUSINGDLL -I$(OWWLBASE)/src/ -Wall -Wunused-parameter -Wno-ctor-dtor-privacy -Woverloaded-virtual -D_FILE_OFFSET_BITS=64 -I/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/lib/wx/include/gtk2-unicode-2.9 -I../../../include -pthread -I/usr/include/gtk-2.0 -I/usr/lib/i386-linux-gnu/gtk-2.0/include -I/usr/include/atk-1.0 -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/pango-1.0 -I/usr/include/gio-unix-2.0/ -I/usr/include/glib-2.0 -I/usr/lib/i386-linux-gnu/glib-2.0/include -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -DWX_PRECOMP -pthread -ggdb -O0 -pthread -I/usr/include/gtk-unix-print-2.0 -I/usr/include/gtk-2.0 -I/usr/include/atk-1.0 -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/pango-1.0 -I/usr/lib/i386-linux-gnu/gtk-2.0/include -I/usr/include/gio-unix-2.0/ -I/usr/include/glib-2.0 -I/usr/lib/i386-linux-gnu/glib-2.0/include -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -fvisibility=hidden -fvisibility-inlines-hidden wxgui.cpp
+$(BUILDDIR)/wxgui.o: wxgui.cpp wxgui.h
+	$(WXBASE)/bk-deps g++ -c -o $(BUILDDIR)/wxgui.o -DVERSIONSTR=\"$(_VERSIONSTR)\" -I. -I$(OWWLBASE)/src/ `$(WXBASE)/wx-config --cxxflags` wxgui.cpp
 
-$(PROGRAM): wxgui.o owwl.o
-	g++ -o $@ wxgui.o owwl.o -L/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/lib  -Wl,-rpath,/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/lib -pthread -lwx_gtk2u_adv-2.9 -lwx_gtk2u_core-2.9 -lwx_baseu-2.9 -lwxtiff-2.9 -lwxjpeg-2.9 -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgio-2.0 -lpangoft2-1.0 -lpangocairo-1.0 -lgdk_pixbuf-2.0 -lcairo -lpango-1.0 -lfreetype -lfontconfig -lgobject-2.0 -lgthread-2.0 -lrt -lglib-2.0 -lX11 -lSM -lpng -lz -lwxregexu-2.9 -pthread -Wl,--version-script,/home/mark/Projects/wxWidgets-2.9.4/buildgtk-debug/version-script -lz -ldl -lm  -lz -ldl -lm
-
-
-
-#$(PROGRAM):	$(OBJECTS)
-#	$(CC) -o $(PROGRAM) $(OBJECTS) `wx-config --libs`
+$(PROGRAM): $(OBJECTS)
+	g++ -o $@ $(OBJECTS) `$(WXBASE)/wx-config --libs`
+	
 
 clean: 
-	rm -f *.o $(PROGRAM)
+	rm -f $(OBJECTS) $(PROGRAM)
 
 diffowwl:
 	diff -x \*~ -rupN $(OWWLBASE)/src/ $(OWWLBASE)-jmc/src > owwl-0.5.9.patch
