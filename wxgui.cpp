@@ -122,6 +122,97 @@ wxLogWindow * m_logWindow;
 #endif
 
 
+float convertUnits(float intemp, unsigned int in, unsigned int out)
+{
+    float outtemp;
+    if(in == out)
+        outtemp = intemp;
+    else
+    {
+        switch(in)
+        {
+            case OwwlUnit_Celcius:
+                switch(out)
+                {
+                    case OwwlUnit_Celcius:
+                        outtemp = intemp;
+                        break;
+                    case OwwlUnit_Fahrenheit:
+                        outtemp = (intemp * 1.8) + 32;
+                        break;
+                    case OwwlUnit_Kelvin:
+                        outtemp = intemp + 273.15;
+                        break;
+                    case OwwlUnit_Rankine:
+                        outtemp = (intemp + 273.15) * 1.8;
+                        break;
+                    default:
+                        break;
+                };
+                break;
+            case OwwlUnit_Fahrenheit:
+                switch(out)
+                {
+                    case OwwlUnit_Celcius:
+                        outtemp = (intemp - 32.0) * 0.5556;
+                        break;
+                    case OwwlUnit_Fahrenheit:
+                        outtemp = intemp;
+                        break;
+                    case OwwlUnit_Kelvin:
+                        outtemp = ((intemp + 459.67) * 0.5556);
+                        break;
+                    case OwwlUnit_Rankine:
+                        outtemp = (intemp + 459.67);
+                        break;
+                    default:
+                        break;
+                };
+                break;
+            case OwwlUnit_Kelvin:
+                switch(out)
+                {
+                    case OwwlUnit_Celcius:
+                        outtemp = intemp - 273.15;
+                        break;
+                    case OwwlUnit_Fahrenheit:
+                        outtemp = (intemp * 1.8) - 459.67;
+                        break;
+                    case OwwlUnit_Kelvin:
+                        outtemp = intemp;
+                        break;
+                    case OwwlUnit_Rankine:
+                        outtemp = intemp * (1.8);
+                        break;
+                    default:
+                        break;
+                };
+                break;
+            case OwwlUnit_Rankine:
+                switch(out)
+                {
+                    case OwwlUnit_Celcius:
+                        outtemp = (intemp - 491.67) * 0.55556;
+                        break;
+                    case OwwlUnit_Fahrenheit:
+                        outtemp = intemp - 459.67;
+                        break;
+                    case OwwlUnit_Kelvin:
+                        outtemp = intemp * 0.55556;
+                        break;
+                    case OwwlUnit_Rankine:
+                        outtemp = intemp;
+                        break;
+                    default:
+                        break;
+                };
+                break;
+            default:
+                break;
+        }
+    }
+    return outtemp;
+}
 
 // ============================================================================
 // declarations
@@ -2309,7 +2400,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 speed =   od->val(od, unit, 0);
                 bearing = od->val(od, OwwlUnit_Point16, 2);
                 //wxLogVerbose(wxString::Format(wxT("bearing %lf"), bearing ));
-                
+
                 static int inc_top = 0;
                 if(speed >= 0.0 && speed <= 1.0)
                 {
@@ -2519,8 +2610,9 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                     }
                     if(NULL != od)
                     {
+                        windchill = convertUnits(windchill, OwwlUnit_Imperial, unit);
                         DrawText(&dc, wxString::Format("wc:%2.1f%s", windchill,
-                                        owwl_unit_name(od, OwwlUnit_Imperial, 0)), 
+                                        owwl_unit_name(od, unit, 0)), 
                             wxT("RED"), wxT("BLACK"), wxPoint(25, 185));
                     }
                 }
