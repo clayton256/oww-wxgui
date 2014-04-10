@@ -2752,13 +2752,16 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             od = owwl_find(m_frame->m_connection, OwwlDev_Rain, 0, 0);
             if(NULL != od)
             {
-                wxDateTime rain_time = wxDateTime(
-                                        od->device_data.rain.rain_reset_time);
-                DrawText(&dc, wxString::Format("Rain: %s %s since %s (%s %s)", 
-                                        od->str(od, linebuf, 128, unit, -1, 0),
+                wxDateTime rain_time = wxDateTime(od->device_data.rain.rain_reset_time);
+                //wxString rain_count(od->str(od, linebuf, 128, unit, -1, 0));
+                //wxString rain_rate(od->str(od, linebuf, 128, unit, -1, 3));
+                float  rain_count = od->val(od, unit, 0);
+                float  rain_rate = od->val(od, unit, 2);
+                DrawText(&dc, wxString::Format("Rain: %1.2f%s since %s (%1.2f%s)", 
+                                        rain_count,
                                         owwl_unit_name(od, unit, 0),
                                         rain_time.FormatTime(),
-                                        od->str(od, linebuf, 128, unit, -1, 2),
+                                        rain_rate,
                                         owwl_unit_name(od, unit, 2)),
                             wxT("YELLOW"), wxT("BLACK"), wxPoint(25, 370));
             }
