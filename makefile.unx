@@ -23,7 +23,7 @@ BUILDDIR=linux
 OWWLVERS=
 OWWLBASE=../owwl$(OWWLVERS)
 PROGRAM = $(BUILDDIR)/oww-wxgui
-OBJECTS = $(BUILDDIR)/wxgui.o $(BUILDDIR)/owwl.o $(BUILDDIR)/heatindex.o
+OBJECTS = $(BUILDDIR)/wxgui.o $(BUILDDIR)/owwl.o $(BUILDDIR)/heatindex.o $(BUILDDIR)/winddir.o
 CPPCHECK=cppcheck
 
 _VERSIONSTR="0.85.0-1"
@@ -47,6 +47,8 @@ $(BUILDDIR)/owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
 .c.o :
 	$(CC) -c -D__WXGUI__ -DNOGUI -o $@ $(OWWLBASE)/src/$<
 
+$(BUILDDIR)/winddir.o: winddir.cpp winddir.h
+	$(WXBASE)/bk-deps g++ -c -o $(BUILDDIR)/winddir.o -I. `$(WXBASE)/wx-config --cxxflags` winddir.cpp
 
 $(BUILDDIR)/wxgui.o: wxgui.cpp wxgui.h
 	$(WXBASE)/bk-deps g++ -c -o $(BUILDDIR)/wxgui.o -DVERSIONSTR=\"$(_VERSIONSTR)\" -I. -I$(OWWLBASE)/src/ `$(WXBASE)/wx-config --cxxflags` wxgui.cpp
