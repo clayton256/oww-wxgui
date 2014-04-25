@@ -83,6 +83,7 @@
 // app include
 #include "wxgui.h"
 #include "heatindex.h"
+#include "winddir.h"
 
 class MyFrame;
 
@@ -2521,23 +2522,15 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                                                         + body_jpg.GetHeight());
                 }
 
-                // Draw Wind Speed on canvas
-                DrawText(&dc, wxString::Format("%s %s",
+                // Draw Wind Speed and Wind Gust Speed on canvas
+                DrawText(&dc, wxString::Format("%s %s (%s %s)",
                                         od->str(od, linebuf, 128, unit, -1, 0),
-                                        owwl_unit_name(od, unit, 0)), 
-                        wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 20));
-                // Draw Wind Gust Speed on canvas
-                DrawText(&dc, wxString::Format("%s %s",
+                                        owwl_unit_name(od, unit, 0), 
                                         od->str(od, linebuf, 128, unit, -1, 1),
                                         owwl_unit_name(od, unit, 1)), 
-                        wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 40));
-                // Draw Wind Bearing on canvas
+                        wxT("YELLOW"), wxT("BLACK"), wxPoint(300, 10));
 #if 0
-                shadowDC->DrawShadowText( wxString::Format("%s %s",
-                                        od->str(od, linebuf, 128, unit, -1, 0),
-                                        owwl_unit_name(od, unit, 0)), 
-                        wxPoint(365, 60));
-#else
+                // Draw Wind Bearing on canvas
                 DrawText(&dc, wxString::Format("%s", 
                                 od->str(od, linebuf, 128, OwwlUnit_Name, -1, 2)),
                         wxT("YELLOW"), wxT("BLACK"), wxPoint(365, 60));
@@ -2770,12 +2763,18 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 wxLogVerbose("MyCanvas::OnPaint od OwwDev_Rain == NULL");
             }
 
+            wxRectangle area;
+            area.x = 300;
+            area.y = 50;
+            area.width = 100;
+            area.height = 100; 
+            mainwin_draw_compass_rose(&dc, 1, bearing, area);
             dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
             dc.SetPen( *wxBLACK_PEN );
-            dc.DrawCircle( 325, 120, 25);
+            //dc.DrawCircle( 325, 120, 25);
             //dc.SetBrush( *wxWHITE_BRUSH );
             //dc.SetPen( *wxRED_PEN );
-            dc.DrawRectangle( 322, 50, 5, 10 );
+            //dc.DrawRectangle( 322, 50, 5, 10 );
 
         }
         else

@@ -19,14 +19,17 @@ pixmaps/oww.icns: pixmaps/oww.png
 owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
 	$(WXWIDGETSBUILD)/bk-deps gcc -stdlib=libstdc++ -mmacosx-version-min=10.6 -c -o owwl.o -DNOGUI -DHAVE_GETTIMEOFDAY=1 -Wall -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src -g -O0 -fno-common $(OWWLBASE)/src/owwl.c
 
+winddir.o: winddir.cpp winddir.h
+	$(WXWIDGETSBUILD)/bk-deps g++ -stdlib=libstdc++ -mmacosx-version-min=10.6 `$(WXWIDGETSBUILD)/wx-config --cxxflags` -c -o winddir.o -DNOGUI -Wall -D_FILE_OFFSET_BITS=64 -I./ -g -O0 -fno-common winddir.cpp
+
 heatindex.o: heatindex.c heatindex.h
 	$(WXWIDGETSBUILD)/bk-deps gcc -stdlib=libstdc++ -mmacosx-version-min=10.6 -c -o heatindex.o -DNOGUI -Wall -D_FILE_OFFSET_BITS=64 -I./ -g -O0 -fno-common heatindex.c
 
 wxgui.o: wxgui.cpp wxgui.h pixmaps/oww_xpm.xpm
 	$(WXWIDGETSBUILD)/bk-deps g++ -stdlib=libstdc++ -mmacosx-version-min=10.6 `$(WXWIDGETSBUILD)/wx-config --cxxflags` -c -o wxgui.o -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src -g -O0 -fno-common wxgui.cpp
 
-$(EXENAME): wxgui.o owwl.o heatindex.o
-	g++ -stdlib=libstdc++ -mmacosx-version-min=10.6 -o $(EXENAME) heatindex.o owwl.o wxgui.o `$(WXWIDGETSBUILD)/wx-config --libs`
+$(EXENAME): wxgui.o owwl.o heatindex.o winddir.o
+	g++ -stdlib=libstdc++ -mmacosx-version-min=10.6 -o $(EXENAME) winddir.o heatindex.o owwl.o wxgui.o `$(WXWIDGETSBUILD)/wx-config --libs`
 
 $(APPNAME): $(EXENAME) Info.plist.in pixmaps/oww.icns
 	SetFile -t APPL $(EXENAME)
