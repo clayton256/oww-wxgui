@@ -153,7 +153,7 @@ void mainwin_draw_compass_rose(wxPaintDC *dc, int new_data, int vane, wxRectangl
     for (i=0; i<8; ++i) {
         const char *label[8] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"} ;
         int pos ;
-        wxPoint tp(0, 67);
+        wxPoint tp(0, 55);
         if (i%2) tp.y -= 4 ;
 
         pos = 1 + 2*i ;
@@ -165,7 +165,7 @@ void mainwin_draw_compass_rose(wxPaintDC *dc, int new_data, int vane, wxRectangl
     for (i=1; i<17; i+=4) {
         wxPoint line[2];
         line[0].x = 0; line[0].y = 29; 
-        line[1].x = 0; line[1].y = 51;
+        line[1].x = 0; line[1].y = 36;
         rotate_points(i, line, xc, yc, 2) ;
 		wxPen pen((i==vane)? *wxGREEN : *wxWHITE, 9);
         dc->SetPen(pen);
