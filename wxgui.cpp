@@ -1618,6 +1618,8 @@ void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
                         "One wire Weather",
                         wxICON_INFORMATION | wxOK );
 #else
+    wxDateTime dateTime = wxDateTime::Now();
+    wxString buildStr = dateTime.FormatISOCombined();
     wxAboutDialogInfo info;
     //info.SetIcon();
     info.SetName(_("oww-wxgui"));
@@ -1627,7 +1629,7 @@ void MyFrame::OnAbout( wxCommandEvent &WXUNUSED(event) )
     info.AddDeveloper("\nThe wxWidgets team! - Thank You!");
     info.SetWebSite(_("www.mark-clayton.com/projects.html#oww-wxgui"), 
                                                         _("oww-wxgui website"));
-    info.SetVersion(g_VersionStr);
+    info.SetVersion(g_VersionStr + "-" + buildStr);
     info.SetCopyright(_T("(C)2012 Mark Clayton mark_clayton@users.sourceforge.net"));
 
     wxAboutBox(info);
@@ -1939,11 +1941,11 @@ bool MyApp::OnInit()
     wxFrame *pLogFrame = m_logWindow->GetFrame();
     pLogFrame->SetWindowStyle(wxDEFAULT_FRAME_STYLE);
     pLogFrame->SetSize(wxRect(0,50,500,200));
-    m_logWindow->SetVerbose(true);
+    m_logWindow->SetVerbose(false);
     wxLog::SetActiveTarget(m_logWindow);
     m_logWindow->Show();
 #else
-    wxLog::SetVerbose(true);
+    wxLog::SetVerbose(false);
     FILE *logFile;
 #if __WXOSX_COCOA__
     logFile = fopen("/Users/clayton/oww-wxgui.log","w");
