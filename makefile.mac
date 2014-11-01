@@ -67,4 +67,7 @@ diffowwl:
 patchowwl:
 	patch < owwl-0.5.9.patch
 
+upload:
+	scp -r Oww.app clayton@jmc.local.:~/Applications/
+
 
