@@ -167,7 +167,7 @@ void mainwin_draw_compass_rose(wxPaintDC *dc, int new_data, int vane, wxRectangl
         line[0].x = 0; line[0].y = 29; 
         line[1].x = 0; line[1].y = 36;
         rotate_points(i, line, xc, yc, 2) ;
-		wxPen pen((i==vane)? *wxGREEN : *wxWHITE, 9);
+		wxPen pen((i==vane)? *wxBLACK : *wxWHITE, 9);
         dc->SetPen(pen);
 		dc->DrawLine( line[0], line[1]);
     }
@@ -183,7 +183,7 @@ void mainwin_draw_compass_rose(wxPaintDC *dc, int new_data, int vane, wxRectangl
         points[1].x = 0; points[1].y = 33;
 
         rotate_points(i, points, xc, yc, 2) ;
-		wxPen pen((i==vane)? *wxGREEN : *wxWHITE, 9);
+		wxPen pen((i==vane)? *wxBLACK : *wxWHITE, 9);
         dc->SetPen(pen);
 		dc->DrawLine( points[0], points[1]);
     }
@@ -199,7 +199,7 @@ void mainwin_draw_compass_rose(wxPaintDC *dc, int new_data, int vane, wxRectangl
         points[1].x = 0; points[1].y = 31;
 
         rotate_points(i, points, xc, yc, 2) ;
-		wxPen pen((i==vane)? *wxGREEN : *wxWHITE, 5);
+		wxPen pen((i==vane)? *wxBLACK : *wxWHITE, 5);
         dc->SetPen(pen);
 		dc->DrawLine( points[0], points[1]);
     }
