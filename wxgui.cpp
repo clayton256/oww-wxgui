@@ -389,17 +389,16 @@ void PressureTendency::inHg2PressTend(owwl_conn* connection)
 
             press_trend = barometric_change(m_baroReadings[0].GetReading(), 
                                                 m_baroReadings.Last().GetReading());
-            wxLogVerbose(wxString::Format(wxT("press_trend %d %lf %lf"), press_trend, 
-                   m_baroReadings.Last().GetReading(), m_baroReadings[0].GetReading()));
-            
+            //wxLogVerbose(wxString::Format(wxT("press_trend %d %lf %lf"), press_trend, 
+            //       m_baroReadings.Last().GetReading(), m_baroReadings[0].GetReading()));
             if(timeSpan.GetHours() >= 3)
             {
                 m_baroReadings.RemoveAt(0);
             }
             else
             {
-                wxLogVerbose(wxString::Format(wxT("need moe time %d"), 
-                                                        (int)timeSpan.GetHours()));
+                //wxLogVerbose(wxString::Format(wxT("need moe time %d"), 
+                //                                        (int)timeSpan.GetHours()));
             }
         }
         else
@@ -476,7 +475,7 @@ class MyApp: public wxApp
 public:
     virtual bool OnInit();
     virtual int  OnExit();
-#if 0
+#if 1
     virtual void OnInitCmdLine(wxCmdLineParser& parser);
     virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
     wxString GetCmdLine();
@@ -487,14 +486,15 @@ protected:
     virtual wxAppTraits *CreateTraits() { return new MyAppTraits; }
 };
 
-#if 0
+#if 1
 static const wxCmdLineEntryDesc g_cmdLineDesc [] =
 {
      { wxCMD_LINE_SWITCH, "h", "help", 
                            "displays help on the command line parameters",
                            wxCMD_LINE_VAL_NONE, wxCMD_LINE_OPTION_HELP },
      { wxCMD_LINE_SWITCH, "t", "test", "test switch",
-                           wxCMD_LINE_VAL_NONE, wxCMD_LINE_OPTION_MANDATORY },
+                           wxCMD_LINE_VAL_NONE, wxCMD_LINE_PARAM_OPTIONAL
+                               /*wxCMD_LINE_OPTION_MANDATORY*/ },
      { wxCMD_LINE_SWITCH, "s", "silent", "disables the GUI" },
      { wxCMD_LINE_NONE }
 };
@@ -685,7 +685,6 @@ private:
 class MyFrame: public wxFrame
 {
     OwwlReaderTimer * m_readerTimer;
-    wxConfigBase *    m_config;
 
 public:
     MyFrame();
@@ -775,7 +774,7 @@ public:
     }
 
     owwl_buffer buff;
-    
+
     wxMenu        *menuImage;
     wxMenu        *subMenu;
     MyCanvas      *m_canvas;
@@ -794,6 +793,7 @@ public:
     int            m_fontSz;
     int            m_windChillAlgor;
     PressureTendency  m_pressTend;
+    wxConfigBase  *m_config;
 
 private:
     enum
@@ -879,10 +879,10 @@ private:
         m_grid->EnableDragRowSize(false);
         m_grid->EnableDragColSize(false);
         m_grid->CreateGrid(0, 4);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Name  ", gridColName);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Data  ", gridColData);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Value ", gridColValue);
-        m_grid->SetLabelValue(wxHORIZONTAL, "  Unit  ", gridColUnit);
+        m_grid->SetColLabelValue(gridColName, "  Name  ");
+        m_grid->SetColLabelValue(gridColData, "  Data  ");
+        m_grid->SetColLabelValue(gridColValue, "  Value ");
+        m_grid->SetColLabelValue(gridColUnit, "  Unit  ");
         InitPopulateCells();
         UpdateCellsUnits();
         PopulateCellVals();
@@ -902,6 +902,22 @@ private:
             gSz.IncBy(0, bSz.GetHeight()*1.5);
             SetClientSize(gSz);
         }
+
+        //wxTopLevelWindow.GetPosition();
+    	wxPoint pos;
+		pos.x = m_mainFrame->m_config->Read(_T("/AuxFrame/x"), -1);
+    	pos.y = m_mainFrame->m_config->Read(_T("/AuxFrame/y"), -1);
+        wxLogVerbose(wxString::Format(wxT("position: %d %d"), pos.x, pos.y));
+        if ( -1 == pos.x )
+		{
+			pos = parent->GetPosition();
+			pos.x += 30;
+			pos.y += 30;
+        	wxLogVerbose(wxString::Format(wxT("position: %d %d"), pos.x, pos.y));
+		}
+        wxLogVerbose(wxString::Format(wxT("position: %d %d"), pos.x, pos.y));
+        SetPosition(pos);
+
         return true;
     } //Create
 
@@ -958,12 +974,11 @@ int MyAuxilliaryFrame::InitPopulateCells()
                     {
                         namebuff[0] = '\0';
                         m_grid->AppendRows();
-                        m_grid->SetCellValue(owwl_name(&(data[i]), namebuff, 
-                                                128, &length, 0), cntr, 0);
-                        m_grid->SetCellValue(owwl_arg_stem(
+                        m_grid->SetCellValue(cntr, 0, owwl_name(&(data[i]), namebuff, 
+                                                128, &length, 0));
+                        m_grid->SetCellValue(cntr, 1, owwl_arg_stem(
                                     (owwl_device_type_enum)data[i].device_type,
-                                    data[i].device_subtype, arg),
-                                cntr, 1);
+                                    data[i].device_subtype, arg));
                         cntr++;
                         arg = owwl_next_arg(&(data[i]), arg);
                     }
@@ -1001,8 +1016,7 @@ int MyAuxilliaryFrame::UpdateCellsUnits()
                         if((unit_class>=0) && (unit_class<OWWL_UNIT_CLASS_LIMIT))
                             unit = unit_choices[unit_class];
 
-                        m_grid->SetCellValue(owwl_unit_name(&(data[i]), unit, arg),
-                                            cntr, 3);
+                        m_grid->SetCellValue(cntr, 3, owwl_unit_name(&(data[i]), unit, arg));
                         cntr++;
                         arg = owwl_next_arg(&(data[i]), arg) ;
                     }
@@ -1053,7 +1067,7 @@ int MyAuxilliaryFrame::PopulateCellVals(void)
                             m_grid->SetCellTextColour(cntr, 2,
                                               m_grid->GetDefaultCellTextColour());
                         }
-                        m_grid->SetCellValue(new_val, cntr, 2);
+                        m_grid->SetCellValue(cntr, 2, new_val);
                         cntr++;
                         arg = owwl_next_arg(&(data[i]), arg);
                     }
@@ -1262,13 +1276,18 @@ MyFrame::~MyFrame()
 #endif
     };
     // save the frame position
-    int x, y, w, h;
-    GetClientSize(&w, &h);
+    int x, y;
     GetPosition(&x, &y);
     m_config->Write(_T("/MainFrame/x"), (long) x);
     m_config->Write(_T("/MainFrame/y"), (long) y);
-    m_config->Write(_T("/MainFrame/w"), (long) w);
-    m_config->Write(_T("/MainFrame/h"), (long) h);
+
+	if (NULL != m_canvas->m_auxilliaryFrame)
+	{
+		m_canvas->m_auxilliaryFrame->GetPosition(&x, &y);
+		m_config->Write(_T("/AuxFrame/x"), (long) x);
+		m_config->Write(_T("/AuxFrame/y"), (long) y);
+	}
+
 } //MyFrame d-tor
 
 
@@ -1306,7 +1325,7 @@ MyFrame::MyFrame()
     m_windChillAlgor = 1;
     m_fontSz = 14;
 
-    wxLogVerbose(wxString::Format(wxT("Welcome to %s"), wxT("oww-wxgui")));
+    //wxLogVerbose(wxString::Format(wxT("Welcome to %s"), wxT("oww-wxgui")));
 
 #ifdef __WXMSW__
     WORD wVersionRequested;
@@ -1320,7 +1339,7 @@ MyFrame::MyFrame()
     {
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
-        wxLogVerbose(wxT("The Winsock dll not found!"));
+        //wxLogVerbose(wxT("The Winsock dll not found!"));
     }
     /* Confirm that the WinSock DLL supports 2.2.*/
     /* Note that if the DLL supports versions greater    */
@@ -1331,8 +1350,8 @@ MyFrame::MyFrame()
     {
         /* Tell the user that we could not find a usable */
         /* WinSock DLL.*/
-        wxLogVerbose(wxString::Format(wxT("Winsock dll is version %u.%u"),
-                           LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)));
+        //wxLogVerbose(wxString::Format(wxT("Winsock dll is version %u.%u"),
+        //                   LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion)));
         WSACleanup();
     }
 #endif
@@ -1438,7 +1457,7 @@ int MyFrame::InitServerConnection(void)
     int addr_len;
     struct sockaddr *address = NULL;
 
-    wxLogVerbose(wxString::Format(wxT("Connecting to: %s"), m_hostname.c_str()));
+    //wxLogVerbose(wxString::Format(wxT("Connecting to: %s"), m_hostname.c_str()));
 
 #ifndef __WXMSW__
     if (m_hostname.c_str()[0] == '/') /* AF_LOCAL */
@@ -1476,8 +1495,8 @@ int MyFrame::InitServerConnection(void)
         }
         else
         {
-            wxLogVerbose(wxT("Unable to resolve host %s error:%s"), 
-                                    m_hostname.c_str(), strerror(sock_error));
+            //wxLogVerbose(wxT("Unable to resolve host %s error:%s"), 
+            //                        m_hostname.c_str(), strerror(sock_error));
             retval = -1;
         }
     } // local port vs address
@@ -1501,16 +1520,16 @@ int MyFrame::InitServerConnection(void)
             }
             else
             {
-                wxLogVerbose(wxT("Connect failed, error: %s"),
-                                                        strerror(sock_error));
+                //wxLogVerbose(wxT("Connect failed, error: %s"),
+                //                                        strerror(sock_error));
                 ServerDisconnect();
                 retval = -1;
             } //connect()
         }
         else
         {
-            wxLogVerbose(wxT("Open socket failed, error: %s"),
-                                                        strerror(sock_error));
+            //wxLogVerbose(wxT("Open socket failed, error: %s"),
+            //                                            strerror(sock_error));
             ServerDisconnect();
             retval = -1;
         } //socket()
@@ -1685,7 +1704,7 @@ void MyFrame::OnAuxilliary(wxCommandEvent &WXUNUSED(event))
 void MyFrame::OnMessages( wxCommandEvent &WXUNUSED(event) )
 {
     bool verb = !m_logWindow->GetVerbose();
-    wxLogVerbose(wxT("SetVerbose=%d"), verb);
+    //wxLogVerbose(wxT("SetVerbose=%d"), verb);
     m_logWindow->SetVerbose(verb);
     //m_logWindow->Show();
 } //MyFrame::OnMessages
@@ -1696,8 +1715,8 @@ void MyFrame::OnMap( wxCommandEvent &WXUNUSED(event) )
 {
     float latitude = GetOwwlLatitude();
     float longitude = GetOwwlLongitude();
-    wxLogVerbose(wxT("OnMap Latitude=%3.4f"), latitude);
-    wxLogVerbose(wxT("OnMap Longitude=%3.4f"), longitude);
+    //wxLogVerbose(wxT("OnMap Latitude=%3.4f"), latitude);
+    //wxLogVerbose(wxT("OnMap Longitude=%3.4f"), longitude);
 
     //char command[2048];
     //sprintf(command, "open /Applications/Safari.app/Contents/MacOS/Safari " + 
@@ -1945,7 +1964,7 @@ bool MyApp::OnInit()
     wxLog::SetActiveTarget(m_logWindow);
     m_logWindow->Show();
 #else
-    wxLog::SetVerbose(false);
+    wxLog::SetVerbose(true);
     FILE *logFile;
 #if __WXOSX_COCOA__
     logFile = fopen("/Users/clayton/oww-wxgui.log","w");
@@ -1996,8 +2015,8 @@ wxString MyApp::GetCmdLine()
     }
     return s;
 } // MyApp::GetCmdLine
-
-
+#endif
+#if 1
 void MyApp::OnInitCmdLine(wxCmdLineParser& parser)
 {
     parser.SetDesc (g_cmdLineDesc);
@@ -2008,15 +2027,17 @@ void MyApp::OnInitCmdLine(wxCmdLineParser& parser)
 
 bool MyApp::OnCmdLineParsed(wxCmdLineParser& parser)
 {
-    wxLogVerbose(wxT("cmdln: %s"), MyApp::GetCmdLine().c_str());
-    /*silent_mode =*/ parser.Found(wxT("s"));
+    //wxLogVerbose(wxT("cmdln: %s"), MyApp::GetCmdLine().c_str());
+    bool help_mode = parser.Found(wxT("h"));
+    bool test_mode = parser.Found(wxT("t"));
+    bool silent_mode = parser.Found(wxT("s"));
 
     // to get at your unnamed parameters use
-    wxArrayString files;
-    for (unsigned int i = 0; i < parser.GetParamCount(); i++)
-    {
-            files.Add(parser.GetParam(i));
-    }
+//    wxArrayString files;
+//    for (unsigned int i = 0; i < parser.GetParamCount(); i++)
+//    {
+//            files.Add(parser.GetParam(i));
+//}
 
     // and other command line parameters
 
@@ -2046,6 +2067,7 @@ void MyApp::LogPlatform()
     wxLogVerbose(wxT(" * WX ID: %s"), p.GetPortIdName().c_str());
     wxLogVerbose(wxT(" * WX Version: %d.%d.%d.%d"), wxMAJOR_VERSION, 
                         wxMINOR_VERSION, wxRELEASE_NUMBER, wxSUBRELEASE_NUMBER);
+    
     return;
 } //MyApp::LogPlatform
 
@@ -2089,10 +2111,10 @@ void OwwlReaderTimer::Notify()
                 switch(owwl_read(connection))
                 {
                     case Owwl_Read_Error:
-                        wxLogVerbose(wxT("Protocol Error"));
+                        //wxLogVerbose(wxT("Protocol Error"));
                         // drop thru to disconnect break;
                     case Owwl_Read_Disconnect:
-                        wxLogVerbose(wxT("Server Disconnect"));
+                        //wxLogVerbose(wxT("Server Disconnect"));
                         m_frame->SetStatusText(wxT("Server disconnect"));
                         /* Try to reconnect */
                         /* but for now close up */
@@ -2103,16 +2125,16 @@ void OwwlReaderTimer::Notify()
                         last = time(NULL);
                         break;
                     case Owwl_Read_Again:
-                        wxLogVerbose(wxT("Read Again"));
+                        //wxLogVerbose(wxT("Read Again"));
                         if(-1 == owwl_tx_poll_servers(connection))
                         {
-                            wxLogVerbose(wxT("owwl_tx_poll_servers failed"));
+                            //wxLogVerbose(wxT("owwl_tx_poll_servers failed"));
                         }
                         wxMilliSleep(10); /* Sleep for 10 ms */
                         if((last != 0) 
                             && (time(NULL)>(last+connection->interval*2+1)))
                         {
-                            wxLogVerbose(wxT("Timeout"));
+                            //wxLogVerbose(wxT("Timeout"));
                             //check_conn(conn) ;
                             last = time(NULL);
                             m_frame->ServerReconnect();
@@ -2122,16 +2144,16 @@ void OwwlReaderTimer::Notify()
                     {
                         wxDateTime dataTime;
                         dataTime = wxDateTime(m_frame->GetOwwlDataTime());
-                        wxLogVerbose(wxT("Read And Decode %s"), 
-                                                        dataTime.FormatTime());
+                        //wxLogVerbose(wxT("Read And Decode %s"), 
+                        //                                dataTime.FormatTime());
                         if(-1 == owwl_tx_build(connection, OWW_TRX_MSG_WSDATA, 
                                                                 &(m_frame->buff)))
                         {
-                            wxLogVerbose(wxT("owwl_tx_build failed"));
+                            //wxLogVerbose(wxT("owwl_tx_build failed"));
                         }
                         if(-1 == owwl_tx(connection, &(m_frame->buff)))
                         {
-                            wxLogVerbose(wxT("owwl_tx failed"));
+                            //wxLogVerbose(wxT("owwl_tx failed"));
                         }
                         m_frame->m_pressTend.inHg2PressTend(m_frame->m_connection);
                         last = time(NULL);
@@ -2147,7 +2169,7 @@ void OwwlReaderTimer::Notify()
         } //if(NULL != m_frame->m_connection)
         else
         {
-            wxLogVerbose("OwwlReaderTimer::Notify Reconnectiong...");
+            //wxLogVerbose("OwwlReaderTimer::Notify Reconnectiong...");
             m_frame->ServerReconnect();
         }
     } //if(NULL != m_frame)
@@ -2157,7 +2179,7 @@ void OwwlReaderTimer::Notify()
 
 void OwwlReaderTimer::start()
 {
-    wxLogVerbose(wxT("Poll Interval %d"), m_pollInterval);
+    //wxLogVerbose(wxT("Poll Interval %d"), m_pollInterval);
     wxTimer::Start(m_pollInterval);
     return;
 } // OwwlReader::start
@@ -2217,7 +2239,7 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
     // Windows: the directory where the executable file is located
     // Mac: appname.app/Contents/Resources bundle subdirectory
     wxString dir = wxStandardPaths::Get().GetResourcesDir() + wxT("/pixmaps/");
-    wxLogVerbose(wxString::Format(wxT("Looking for images in %s"), dir.c_str()));
+    //wxLogVerbose(wxString::Format(wxT("Looking for images in %s"), dir.c_str()));
 
     if ( wxFile::Exists( dir + wxT("body.jpg"))
       && wxFile::Exists( dir + wxT("top1.jpg")) 
@@ -2313,12 +2335,12 @@ MyCanvas::MyCanvas( wxWindow *parent, wxWindowID id,
         {
             dc.DrawBitmap( bottom1_jpg, 0, top1_jpg.GetHeight() 
                                                 + body_jpg.GetHeight());
-        }
+       }
 #endif
      }
     else
     {
-        wxLogVerbose(wxT("Can't find image files!"));
+        //wxLogVerbose(wxT("Can't find image files!"));
     }
 
     m_counter = 0;
@@ -2351,7 +2373,7 @@ void MyCanvas::DrawText(wxPaintDC * d, wxString str, wxColor fore, wxColor shado
 
 void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
 {
-    wxLogVerbose(_T("start MyCanvas::OnPaint"));
+    //wxLogVerbose(_T("start MyCanvas::OnPaint"));
     wxPaintDC dc( this );
     //shadowDC = new wxShadowDC(this);
     //shadowDC->SetTextShadowColour(wxT("BLACK"));
@@ -2543,7 +2565,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             else
             {
-                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Wind == NULL");
+                //wxLogVerbose("MyCanvas::OnPaint od OwwDev_Wind == NULL");
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
@@ -2557,7 +2579,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             else
             {
-                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temperature == NULL");
+                //wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temperature == NULL");
             }
 
 /* The equivalent formula in US customary units is:
@@ -2627,7 +2649,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             else
             {
-                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Humidity == NULL");
+                //wxLogVerbose("MyCanvas::OnPaint od OwwDev_Humidity == NULL");
             }
             if(1)
             {
@@ -2669,7 +2691,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             else
             {
-                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temp/Humidity==NULL");
+                //wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temp/Humidity==NULL");
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Temperature, 
@@ -2683,7 +2705,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             else
             {
-                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temp/Barometer == NULL");
+                //wxLogVerbose("MyCanvas::OnPaint od OwwDev_Temp/Barometer == NULL");
             }
 
             od = owwl_find(m_frame->m_connection, OwwlDev_Barometer, 0, 0);
@@ -2740,7 +2762,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             else
             {
-                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Barometer == NULL");
+                //wxLogVerbose("MyCanvas::OnPaint od OwwDev_Barometer == NULL");
             }
 
             dc.SetTextForeground( wxT("RED") );
@@ -2762,7 +2784,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             }
             else
             {
-                wxLogVerbose("MyCanvas::OnPaint od OwwDev_Rain == NULL");
+                //wxLogVerbose("MyCanvas::OnPaint od OwwDev_Rain == NULL");
             }
 
             wxRectangle area;
@@ -2771,7 +2793,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
             area.width = 100;
             area.height = 100; 
             mainwin_draw_compass_rose(&dc, 1, bearing, area);
-            dc.SetBrush( wxBrush( wxT("white"), wxSOLID ) );
+            dc.SetBrush( *wxWHITE_BRUSH );
             dc.SetPen( *wxBLACK_PEN );
             //dc.DrawCircle( 325, 120, 25);
             //dc.SetBrush( *wxWHITE_BRUSH );
@@ -2781,7 +2803,7 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
         }
         else
         {
-            wxLogVerbose("MyCanvas::OnPaint m_conn==NULL");
+            //wxLogVerbose("MyCanvas::OnPaint m_conn==NULL");
         }// if(m_connection)
 
 #if 0
@@ -2821,6 +2843,6 @@ void MyCanvas::OnPaint( wxPaintEvent &WXUNUSED(event) )
         }
 #endif
     }// if(m_frame)
-    wxLogVerbose(_T("end MyCanvas::OnPaint"));
+    //wxLogVerbose(_T("end MyCanvas::OnPaint"));
 } //MyCanvas::OnPaint
 

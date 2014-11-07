@@ -1,10 +1,21 @@
 
 _VERSIONSTR="0.85.0-1"
 CCDEBUGFLAGS=-DOWWL_DEBUG
-
+WXVER=3.0
 OWWLBASE=../owwl
+ifeq ($(WXVER),2.9)
 WXWIDGETSBASE=../../wxWidgets-2.9.4
 WXWIDGETSBUILD=$(WXWIDGETSBASE)/cocoa-release
+CFLAGS=gcc -stdlib=libstdc++ -DHAVE_GETTIMEOFDAY=1
+CPPFLAGS=gcc -stdlib=libstdc++ -DHAVE_GETTIMEOFDAY=1
+LDFLAGS=g++ -stdlib=libstdc++
+else
+WXWIDGETSBASE=../../wxWidgets-3.0-trunk
+WXWIDGETSBUILD=$(WXWIDGETSBASE)/cocoa-static-release
+CPPFLAGS=clang++ -stdlib=libc++ -std=c++11 -DHAVE_GETTIMEOFDAY -DHAVE_SYS_TIME_H
+CFLAGS=clang -DHAVE_GETTIMEOFDAY -DHAVE_SYS_TIME_H
+LDFLAGS=clang++ -stdlib=libc++
+endif
 EXENAME=Oww
 APPNAME=$(EXENAME).app
 
@@ -17,19 +28,20 @@ pixmaps/oww.icns: pixmaps/oww.png
 	sips -s format icns pixmaps/oww.png --out pixmaps/oww.icns
 
 owwl.o: $(OWWLBASE)/src/owwl.c $(OWWLBASE)/src/owwl.h
-	$(WXWIDGETSBUILD)/bk-deps gcc -stdlib=libstdc++ -mmacosx-version-min=10.6 -c -o owwl.o -DNOGUI -DHAVE_GETTIMEOFDAY=1 -Wall -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src -g -O0 -fno-common $(OWWLBASE)/src/owwl.c
+	$(WXWIDGETSBUILD)/bk-deps $(CFLAGS) -mmacosx-version-min=10.7 -c -o owwl.o -DNOGUI -Wall -D_FILE_OFFSET_BITS=64 -I./ -I$(WXWIDGETSBUILD)/lib/wx/include/osx_cocoa-unicode-static-2.9 -I$(WXWIDGETSBASE)/include -I$(OWWLBASE)/src -g -O0 -fno-common -Wno-c++11-compat-deprecated-writable-strings $(OWWLBASE)/src/owwl.c
 
 winddir.o: winddir.cpp winddir.h
-	$(WXWIDGETSBUILD)/bk-deps g++ -stdlib=libstdc++ -mmacosx-version-min=10.6 `$(WXWIDGETSBUILD)/wx-config --cxxflags` -c -o winddir.o -DNOGUI -Wall -D_FILE_OFFSET_BITS=64 -I./ -g -O0 -fno-common winddir.cpp
+	$(WXWIDGETSBUILD)/bk-deps $(CPPFLAGS) -mmacosx-version-min=10.7 `$(WXWIDGETSBUILD)/wx-config --cxxflags` -c -o winddir.o -DNOGUI -Wall -D_FILE_OFFSET_BITS=64 -I./ -g -O0 -fno-common winddir.cpp
 
 heatindex.o: heatindex.c heatindex.h
-	$(WXWIDGETSBUILD)/bk-deps gcc -stdlib=libstdc++ -mmacosx-version-min=10.6 -c -o heatindex.o -DNOGUI -Wall -D_FILE_OFFSET_BITS=64 -I./ -g -O0 -fno-common heatindex.c
+	$(WXWIDGETSBUILD)/bk-deps $(CFLAGS) -mmacosx-version-min=10.7 -c -o heatindex.o -DNOGUI -Wall -D_FILE_OFFSET_BITS=64 -I./ -g -O0 -fno-common heatindex.c
 
 wxgui.o: wxgui.cpp wxgui.h pixmaps/oww_xpm.xpm
-	$(WXWIDGETSBUILD)/bk-deps g++ -stdlib=libstdc++ -mmacosx-version-min=10.6 `$(WXWIDGETSBUILD)/wx-config --cxxflags` -c -o wxgui.o -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src -g -O0 -fno-common wxgui.cpp
+	$(WXWIDGETSBUILD)/bk-deps $(CPPFLAGS) -mmacosx-version-min=10.7 `$(WXWIDGETSBUILD)/wx-config --cxxflags` -c -o wxgui.o -DVERSIONSTR=\"$(_VERSIONSTR)\" -I$(OWWLBASE)/src -g -O0 -fno-common wxgui.cpp
 
 $(EXENAME): wxgui.o owwl.o heatindex.o winddir.o
-	g++ -stdlib=libstdc++ -mmacosx-version-min=10.6 -o $(EXENAME) winddir.o heatindex.o owwl.o wxgui.o `$(WXWIDGETSBUILD)/wx-config --libs`
+	$(LDFLAGS) -mmacosx-version-min=10.7 -o $(EXENAME) winddir.o heatindex.o owwl.o wxgui.o -L/Users/mark/Projects/wxWidgets-3.0-trunk/cocoa-static-release/lib   -framework IOKit -framework Carbon -framework Cocoa -framework AudioToolbox -framework System -framework OpenGL /Users/mark/Projects/wxWidgets-3.0-trunk/cocoa-static-release/lib/libwx_osx_cocoau_xrc-3.1.a /Users/mark/Projects/wxWidgets-3.0-trunk/cocoa-static-release/lib/libwx_osx_cocoau_qa-3.1.a /Users/mark/Projects/wxWidgets-3.0-trunk/cocoa-static-release/lib/libwx_baseu_net-3.1.a /Users/mark/Projects/wxWidgets-3.0-trunk/cocoa-static-release/lib/libwx_osx_cocoau_html-3.1.a /Users/mark/Projects/wxWidgets-3.0-trunk/cocoa-static-release/lib/libwx_osx_cocoau_adv-3.1.a /Users/mark/Projects/wxWidgets-3.0-trunk/cocoa-static-release/lib/libwx_osx_cocoau_core-3.1.a /Users/mark/Projects/wxWidgets-3.0-trunk/cocoa-static-release/lib/libwx_baseu_xml-3.1.a /Users/mark/Projects/wxWidgets-3.0-trunk/cocoa-static-release/lib/libwx_baseu-3.1.a -framework WebKit -lexpat -lwxregexu-3.1 -lwxtiff-3.1 -lwxjpeg-3.1 -lwxpng-3.1 -lz -lpthread -liconv 
+#	$(LDFLAGS) -mmacosx-version-min=10.7 -o $(EXENAME) winddir.o heatindex.o owwl.o wxgui.o `$(WXWIDGETSBUILD)/wx-config --libs`
 
 $(APPNAME): $(EXENAME) Info.plist.in pixmaps/oww.icns
 	SetFile -t APPL $(EXENAME)
